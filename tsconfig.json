@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "esnext",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noEmit": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "src/*": ["./src/*"],
+      "app/*": ["*"],
+      "components/*": ["src/components/*"],
+      "layouts/*": ["src/layouts/*"],
+      "pages/*": ["src/pages/*"],
+      "assets/*": ["src/assets/*"],
+      "boot/*": ["src/boot/*"],
+      "stores/*": ["src/stores/*"]
+    },
+    "lib": ["esnext", "dom", "dom.iterable"]
+  },
+  "exclude": ["node_modules", "dist", ".quasar", "src-cordova", "src-capacitor"]
+}
