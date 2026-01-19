@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { availableDecoders, getDecoder } from '../decoders';
+import type { DecoderField } from '../decoders/types';
 
 export interface LogEntry {
   id: number;
@@ -23,11 +25,24 @@ export interface Collector {
   timerId: ReturnType<typeof setInterval> | null;
 }
 
+export interface ActiveDevice {
+  id: string; // unique
+  decoderId: string;
+  slaveId: number;
+  name: string;
+  enabled: boolean;
+  interval: number;
+  timerId: ReturnType<typeof setInterval> | null;
+  error: string | null;
+  values: Record<string, string | number>; // fieldName -> value
+}
+
 export const useModbusStore = defineStore('modbus', () => {
   // State
   const connectionStatus = ref('disconnected');
   const logs = ref<LogEntry[]>([]);
   const collectors = ref<Collector[]>([]);
+  const devices = ref<ActiveDevice[]>([]);
   
   // Connection Settings (UI state)
   const connectionType = ref<'tcp' | 'rtu'>('tcp');
@@ -45,7 +60,10 @@ export const useModbusStore = defineStore('modbus', () => {
   const manualStart = ref(0);
   const manualLength = ref(1);
   const manualResult = ref<string>('');
-  
+  const manualData = ref<number[] | boolean[] | null>(null);
+  const manualReadStart = ref(0); // Snapshot for displaying correct addresses
+  const manualTimestamp = ref('');
+
   // Manual Write State
   const manualWriteValue = ref(''); // string for input, comma separated
   const manualWriteMode = ref<'read' | 'write'>('read');
@@ -76,14 +94,21 @@ export const useModbusStore = defineStore('modbus', () => {
 
   async function manualRead() {
     const res = await window.myAPI.readModbus(manualType.value, manualSlaveId.value, manualStart.value, manualLength.value);
+    manualTimestamp.value = new Date().toLocaleString();
+    
     if (res.success && res.data) {
-      manualResult.value = JSON.stringify(res.data);
+      manualData.value = res.data;
+      manualReadStart.value = manualStart.value;
+      manualResult.value = 'Read Success';
     } else {
+      manualData.value = null;
       manualResult.value = 'Error: ' + res.error;
     }
   }
 
   async function manualWrite() {
+    manualData.value = null;
+    manualTimestamp.value = new Date().toLocaleString();
     try {
       if (manualType.value === 'input' || manualType.value === 'discrete') {
          manualResult.value = 'Error: Cannot write to Input Registers or Discrete Inputs';
@@ -209,10 +234,186 @@ export const useModbusStore = defineStore('modbus', () => {
     collectors.value = collectors.value.filter(c => c.id !== id);
   }
 
+  // --- Device Logic ---
+
+  function addDevice(decoderId: string, slaveId: number) {
+    const decoder = getDecoder(decoderId);
+    if (!decoder) return;
+    
+    const dev: ActiveDevice = {
+      id: Date.now().toString(),
+      decoderId,
+      slaveId,
+      name: `${decoder.name} (ID: ${slaveId})`,
+      enabled: false,
+      interval: 2000,
+      timerId: null,
+      error: null,
+      values: {}
+    };
+    devices.value.push(dev);
+  }
+
+  function removeDevice(id: string) {
+    stopDevice(id);
+    devices.value = devices.value.filter(d => d.id !== id);
+  }
+
+  function toggleDevice(id: string) {
+    const d = devices.value.find(x => x.id === id);
+    if (!d) return;
+    if (d.enabled) stopDevice(id);
+    else startDevice(id);
+  }
+
+  function startDevice(id: string) {
+    const d = devices.value.find(x => x.id === id);
+    if (!d) return;
+    
+    const decoder = getDecoder(d.decoderId);
+    if (!decoder) {
+      d.error = 'Decoder not found';
+      return;
+    }
+
+    d.enabled = true;
+    d.error = null;
+    
+    if (d.timerId) clearInterval(d.timerId);
+
+    d.timerId = setInterval(async () => {
+       if (connectionStatus.value !== 'connected') return;
+
+       // Group fields by RegisterType to minimize requests
+       // Simple approach: Iterate groups, find min/max addr
+       const groups = new Map<string, DecoderField[]>();
+       decoder.fields.forEach(f => {
+         const key = f.type;
+         if (!groups.has(key)) groups.set(key, []);
+         groups.get(key)?.push(f);
+       });
+
+       for (const [type, fields] of groups) {
+         if (fields.length === 0) continue;
+         // Find min/max range
+         // Note: Some fields are 2 words (uint32).
+         let minAddr = Infinity;
+         let maxAddr = -Infinity;
+
+         fields.forEach(f => {
+           if (f.address < minAddr) minAddr = f.address;
+           const len = (f.dataType === 'uint32' || f.dataType === 'int32' || f.dataType === 'float32') ? 2 : 1;
+           const end = f.address + len - 1;
+           if (end > maxAddr) maxAddr = end;
+         });
+
+         const start = minAddr;
+         const count = maxAddr - minAddr + 1;
+         
+         const res = await window.myAPI.readModbus(type as RegisterType, d.slaveId, start, count);
+         if (res.success && res.data) {
+           const raw = res.data; // array of numbers (if holding/input) or boolean
+           
+           fields.forEach(f => {
+             // Parse value
+             const offset = f.address - start;
+             // Check bounds
+             if (offset < 0 || offset >= raw.length) return;
+
+             let val: number | string | boolean = 0;
+             if (typeof raw[0] === 'boolean') {
+                val = raw[offset] as boolean;
+             } else {
+                const regs = raw as number[];
+                // Handle datatypes
+                if (f.dataType === 'uint16') {
+                   val = regs[offset];
+                } else if (f.dataType === 'uint32') {
+                   const low = regs[offset];
+                   const high = regs[offset+1] || 0;
+                   if (f.wordOrder === 'little-endian') {
+                     val = (high << 16) | low; // Actually Pzem manual says: 0x0000 Low 16, 0x0001 High 16??
+                     // Wait, usually Little Endian means first register is Low word.
+                     // The example in pzem yaml said: 0x0001 Low, 0x0002 High => 0x0001 is offset 0.
+                     // So val = (regs[offset+1] << 16) | regs[offset].
+                     
+                     // Standard Modbus usually big-endian words.
+                     val = (high << 16) | low; 
+                     
+                     // If Little-Endian Words:
+                     // 32-bit value in 2 registers.
+                     // Big-Endian (default Modbus): Most Significant Register first.
+                     // Little-Endian: Least Significant Register first.
+                     if (f.wordOrder === 'little-endian') {
+                        val = (regs[offset+1] << 16) | regs[offset];
+                     } else {
+                        val = (regs[offset] << 16) | regs[offset+1];
+                     }
+
+                   } else {
+                      // Default Big Endian
+                      val = (regs[offset] << 16) | regs[offset+1];
+                   }
+                   // FIX: JS bitwise ops are 32-bit signed. 
+                   // To get unsigned uint32, use >>> 0
+                   val = (val as number) >>> 0;
+
+                } else if (f.dataType === 'int16') {
+                   val = regs[offset];
+                   if (val > 32767) val = val - 65536;
+                }
+                // TODO: float32, etc.
+             }
+
+             // Apply Scale
+             if (typeof val === 'number' && f.scale) {
+               val = val * f.scale;
+             }
+             
+             // Apply Precision
+             if (typeof val === 'number' && f.precision !== undefined) {
+               val = parseFloat(val.toFixed(f.precision));
+             }
+
+             // Apply Lambda
+             if (f.transform) {
+                try {
+                  const fn = new Function('value', f.transform);
+                  val = fn(val);
+                } catch { /* ignore */ }
+             } else {
+                // Formatting
+                if (f.unit) val = `${val} ${f.unit}`;
+             }
+
+             d.values[f.name] = val as string | number;
+           });
+           
+           d.error = null;
+         } else {
+           d.error = res.error || 'Read Failed';
+         }
+       }
+
+    }, d.interval);
+  }
+
+  function stopDevice(id: string) {
+    const d = devices.value.find(x => x.id === id);
+    if (!d) return;
+    d.enabled = false;
+    if (d.timerId) {
+      clearInterval(d.timerId);
+      d.timerId = null;
+    }
+  }
+
+
   return {
     connectionStatus,
     logs,
     collectors,
+    devices,
     connectionType,
     tcpHost,
     tcpPort,
@@ -225,6 +426,9 @@ export const useModbusStore = defineStore('modbus', () => {
     manualStart,
     manualLength,
     manualResult,
+    manualData,
+    manualReadStart,
+    manualTimestamp,
     addLog,
     setStatus,
     connect,
@@ -236,6 +440,10 @@ export const useModbusStore = defineStore('modbus', () => {
     manualWriteValue,
     manualWriteMode,
     manualWrite,
-    manualType
+    manualType,
+    addDevice,
+    removeDevice,
+    toggleDevice,
+    availableDecoders // Expose list
   };
 });

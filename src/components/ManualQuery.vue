@@ -65,8 +65,28 @@
     </div>
 
     <div class="q-mt-sm bg-grey-2 q-pa-sm rounded-borders" style="min-height: 40px;">
-      <div>Result:</div>
-      <pre class="q-ma-none" style="white-space: pre-wrap;">{{ store.manualResult }}</pre>
+      <div class="row justify-between">
+        <div>Result:</div>
+        <div v-if="store.manualTimestamp" class="text-caption text-grey-7">{{ store.manualTimestamp }}</div>
+      </div>
+      
+      <div v-if="store.manualData && store.manualData.length > 0">
+        <q-markup-table dense flat bordered class="bg-white q-mt-xs">
+          <thead>
+            <tr>
+              <th class="text-left">Register</th>
+              <th class="text-left">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in resultRows" :key="row.regDec">
+              <td class="text-left">{{ row.regDec }} ({{ row.regHex }})</td>
+              <td class="text-left">{{ row.valDec }} <span v-if="row.valHex">({{ row.valHex }})</span></td>
+            </tr>
+          </tbody>
+        </q-markup-table>
+      </div>
+      <pre v-else class="q-ma-none" style="white-space: pre-wrap;">{{ store.manualResult }}</pre>
     </div>
   </q-card>
 </template>
@@ -97,7 +117,28 @@ export default defineComponent({
       ];
     });
 
-    return { store, isConnected, typeOptions };
+    const resultRows = computed(() => {
+      if (!store.manualData) return [];
+      return store.manualData.map((val, idx) => {
+        const addr = store.manualReadStart + idx;
+        let valNum: number;
+        
+        if (typeof val === 'boolean') {
+          valNum = val ? 1 : 0;
+        } else {
+          valNum = val as number;
+        }
+
+        return {
+          regDec: addr,
+          regHex: `0x${addr.toString(16).toUpperCase()}`,
+          valDec: valNum,
+          valHex: `0x${valNum.toString(16).toUpperCase()}`
+        };
+      });
+    });
+
+    return { store, isConnected, typeOptions, resultRows };
   }
 });
 </script>
