@@ -180,7 +180,7 @@ ipcMain.handle('write-modbus', async (event, { type, id, address, values }) => {
     if (type === 'coil') {
        // Coils (FC05/FC15)
        // Expecting boolean-like values (0/1, true/false)
-       const boolValues = (Array.isArray(values) ? values : [values]).map((v: any) => {
+       const boolValues = (Array.isArray(values) ? values : [values]).map((v: string | number | boolean) => {
          if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
          return !!v;
        });
