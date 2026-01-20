@@ -34,6 +34,7 @@ export interface ActiveDevice {
   interval: number;
   timerId: ReturnType<typeof setInterval> | null;
   error: string | null;
+  lastUpdate: string | null;
   values: Record<string, string | number>; // fieldName -> formatted value
   rawValues: Record<string, number | boolean>; // fieldName -> raw numeric/boolean value (scaled)
 }
@@ -250,6 +251,7 @@ export const useModbusStore = defineStore('modbus', () => {
       interval: 2000,
       timerId: null,
       error: null,
+      lastUpdate: null,
       values: {},
       rawValues: {}
     };
@@ -405,6 +407,7 @@ export const useModbusStore = defineStore('modbus', () => {
            });
            
            d.error = null;
+           d.lastUpdate = new Date().toLocaleTimeString();
          } else {
            d.error = res.error || 'Read Failed';
          }

@@ -29,7 +29,10 @@
     <div v-for="dev in store.devices" :key="dev.id" class="q-mb-md">
       <q-card bordered>
         <q-card-section class="row items-center justify-between q-pb-none">
-          <div class="text-h6">{{ dev.name }}</div>
+          <div class="row items-center q-gutter-x-sm">
+             <div class="text-h6">{{ dev.name }}</div>
+             <div v-if="dev.lastUpdate" class="text-caption text-grey">Updated: {{ dev.lastUpdate }}</div>
+          </div>
           <div>
             <q-chip v-if="dev.error" color="negative" text-color="white" icon="warning">{{ dev.error }}</q-chip>
              <q-btn 
@@ -76,11 +79,7 @@
                         dense outlined 
                         type="number"
                         :suffix="field.unit"
-                      >
-                         <template v-slot:after>
-                            <q-btn round flat dense icon="save" size="sm" color="primary" @click="writeValue(dev.id, field.name, dev.rawValues[field.name])" />
-                         </template>
-                      </q-input>
+                      />
                     </template>
                  </template>
 
