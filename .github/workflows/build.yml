@@ -65,8 +65,10 @@ jobs:
           prerelease: false
       - name: Zip release assets
         run: |
-          zip -r modbus-client-linux.zip linux-build
-          zip -r modbus-client-windows.zip windows-build
+          cd linux-build
+          zip -r ../modbus-client-linux.zip .
+          cd ../windows-build
+          zip -r ../modbus-client-windows.zip .
       - name: Upload Linux Release Asset
         uses: actions/upload-release-asset@v1
         env:
