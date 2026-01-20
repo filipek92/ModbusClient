@@ -1,6 +1,6 @@
 {
   "name": "modbus-client",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Modbus Client with Electron, Vue and Quasar",
   "productName": "Modbus Client",
   "author": "Filip",
