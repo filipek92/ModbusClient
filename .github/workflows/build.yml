@@ -20,12 +20,12 @@ jobs:
             artifact_name: linux-build
             build_command: npm run build
             asset_name: modbus-client-linux
-            asset_path: dist/electron/*-unpacked
+            asset_path: dist/electron/Packaged
           - os: windows-latest
             artifact_name: windows-build
             build_command: npm run build:win
             asset_name: modbus-client-windows
-            asset_path: dist/electron/win-unpacked
+            asset_path: dist/electron/Packaged
 
     steps:
       - uses: actions/checkout@v4
