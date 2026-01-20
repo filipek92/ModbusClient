@@ -68,7 +68,7 @@ You can build the application for Linux and Windows.
 To build the application for Linux, run the following command:
 
 ```bash
-npm run build:linux
+npm run build
 ```
 
 This will create a `dist/electron/linux-unpacked` directory with the application files.
@@ -81,4 +81,4 @@ To build the application for Windows, run the following command:
 npm run build:win
 ```
 
-This will create a `dist/electron/win-unpacked` directory with the application files. You will need to have `wine` installed on your system to be able to package the application for Windows.
+This will create a `dist/electron/win-unpacked` directory with the application files.
