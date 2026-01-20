@@ -63,13 +63,25 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-      - name: Upload Release Asset
-        id: upload-release-asset
+      - name: Zip release assets
+        run: |
+          zip -r modbus-client-linux.zip linux-build
+          zip -r modbus-client-windows.zip windows-build
+      - name: Upload Linux Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ matrix.artifact_name }}/${{ matrix.asset_name }}
-          asset_name: ${{ matrix.asset_name }}
+          asset_path: ./modbus-client-linux.zip
+          asset_name: modbus-client-linux.zip
+          asset_content_type: application/zip
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./modbus-client-windows.zip
+          asset_name: modbus-client-windows.zip
           asset_content_type: application/zip
