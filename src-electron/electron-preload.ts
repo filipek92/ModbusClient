@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+type TrafficStats = {
+  txBytes: number;
+  rxBytes: number;
+  txMsg: number;
+  rxMsg: number;
+}
+
 contextBridge.exposeInMainWorld('myAPI', {
   // Connection
   connectRTU: (path: string, baudRate: number, parity: string, dataBits: number, stopBits: number) => ipcRenderer.invoke('connect-rtu', { path, baudRate, parity, dataBits, stopBits }),
@@ -11,6 +18,9 @@ contextBridge.exposeInMainWorld('myAPI', {
   writeModbus: (type: string, id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[]) => ipcRenderer.invoke('write-modbus', { type, id, address, values }),
   
   // Logging Event Listener
+  onTrafficStats: (callback: (stats: TrafficStats) => void) => {
+    ipcRenderer.on('traffic-stats', (_event, stats) => callback(stats))
+  },
   onLog: (callback: (msg: string) => void) => ipcRenderer.on('log-message', (_event, value) => callback(value)),
   
   // Status Listener

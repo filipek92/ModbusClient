@@ -9,7 +9,28 @@
 
     <div v-if="store.connectionType === 'tcp'" class="row q-col-gutter-sm">
       <div class="col-8">
-        <q-input v-model="store.tcpHost" label="Host" dense outlined :disable="isConnected" />
+        <q-select
+          v-model="store.tcpHost"
+          label="Host"
+          dense
+          outlined
+          use-input
+          fill-input
+          hide-selected
+          input-debounce="0"
+          :options="filterOptions"
+          @filter="filterFn"
+          @input-value="updateHost"
+          :disable="isConnected"
+        >
+           <template v-slot:no-option>
+            <q-item>
+              <q-item-section class="text-grey">
+                No history
+              </q-item-section>
+            </q-item>
+          </template>
+        </q-select>
       </div>
       <div class="col-4">
         <q-input v-model.number="store.tcpPort" label="Port" type="number" dense outlined :disable="isConnected" />
@@ -50,14 +71,20 @@
       />
     </div>
     
-    <div class="text-caption q-mt-sm text-right">
-      Status: <span :class="statusColor">{{ store.connectionStatus }}</span>
+    <div class="row items-center justify-between q-mt-sm">
+      <div class="text-caption text-grey">
+        <div>TX: <b class="text-black">{{ store.trafficStats.txMsg }}</b> msgs (<b class="text-black">{{ store.trafficStats.txBytes }}</b> B)</div>
+        <div>RX: <b class="text-black">{{ store.trafficStats.rxMsg }}</b> msgs (<b class="text-black">{{ store.trafficStats.rxBytes }}</b> B)</div>
+      </div>
+      <div class="text-caption text-right">
+        Status: <span :class="statusColor">{{ store.connectionStatus }}</span>
+      </div>
     </div>
   </q-card>
 </template>
 
 <script lang="ts">
-import { defineComponent, computed } from 'vue';
+import { defineComponent, computed, ref } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
 
 export default defineComponent({
@@ -67,13 +94,27 @@ export default defineComponent({
 
     const isConnected = computed(() => store.connectionStatus === 'connected');
     
+    // Autocomplete Logic
+    const filterOptions = ref<string[]>([]);
+    
+    function filterFn (val: string, update: (fn: () => void) => void) {
+      update(() => {
+        const needle = val.toLowerCase();
+        filterOptions.value = store.ipHistory.filter(v => v.toLowerCase().indexOf(needle) > -1);
+      });
+    }
+
+    function updateHost(val: string) {
+      store.tcpHost = val;
+    }
+    
     const statusColor = computed(() => {
       if (store.connectionStatus === 'connected') return 'text-positive text-bold';
       if (store.connectionStatus === 'error') return 'text-negative text-bold';
       return 'text-grey';
     });
 
-    return { store, isConnected, statusColor };
+    return { store, isConnected, statusColor, filterOptions, filterFn, updateHost };
   }
 });
 </script>

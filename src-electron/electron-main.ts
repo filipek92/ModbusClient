@@ -9,6 +9,13 @@ const platform = process.platform || os.platform()
 let mainWindow: BrowserWindow | undefined | null
 const client = new ModbusRTU()
 let connectionStatus = 'disconnected'
+let connectionMode: 'tcp' | 'rtu' = 'tcp'
+const trafficStats = {
+  txBytes: 0,
+  rxBytes: 0,
+  txMsg: 0,
+  rxMsg: 0
+}
 
 function sendLog(message: string) {
   if (mainWindow) {
@@ -22,6 +29,28 @@ function sendStatus(status: string) {
   if (mainWindow) {
     mainWindow.webContents.send('status-change', status)
   }
+}
+
+function sendStats() {
+  if (mainWindow) {
+    mainWindow.webContents.send('traffic-stats', trafficStats)
+  }
+}
+
+function resetStats() {
+  trafficStats.txBytes = 0
+  trafficStats.rxBytes = 0
+  trafficStats.txMsg = 0
+  trafficStats.rxMsg = 0
+  sendStats()
+}
+
+function updateStats(tx: number, rx: number) {
+  trafficStats.txMsg += 1
+  trafficStats.rxMsg += 1
+  trafficStats.txBytes += tx
+  trafficStats.rxBytes += rx
+  sendStats()
 }
 
 function createWindow () {
@@ -87,6 +116,9 @@ ipcMain.handle('connect-tcp', async (event, { host, port }) => {
     client.setID(1) // Default ID, can be changed per request
     client.setTimeout(2000)
     
+    connectionMode = 'tcp'
+    resetStats()
+
     sendStatus('connected')
     sendLog(`Connected to ${host}:${port}`)
     return { success: true }
@@ -146,23 +178,35 @@ ipcMain.handle('read-modbus', async (event, { type, id, start, length }) => {
     const s = parseInt(start)
     const l = parseInt(length)
     let data
+    
+    // Approx overheads
+    const isTcp = connectionMode === 'tcp'
+    const reqBase = isTcp ? 12 : 8 // TCP:7+5, RTU:1+5+2
+    let resDataLen = 0
 
     switch (type) {
       case 'holding':
         data = await client.readHoldingRegisters(s, l)
+        resDataLen = 2 * l
         break
       case 'input':
         data = await client.readInputRegisters(s, l)
+        resDataLen = 2 * l
         break
       case 'coil':
         data = await client.readCoils(s, l)
+        resDataLen = Math.ceil(l / 8)
         break
       case 'discrete':
         data = await client.readDiscreteInputs(s, l)
+        resDataLen = Math.ceil(l / 8)
         break
       default:
         throw new Error(`Unknown register type: ${type}`)
     }
+
+    const resBase = isTcp ? 7 + 2 + resDataLen : 1 + 2 + resDataLen + 2
+    updateStats(reqBase, resBase)
 
     return { success: true, data: data.data }
   } catch (e) {
@@ -226,6 +270,34 @@ ipcMain.handle('write-modbus', async (event, { type, id, address, values }) => {
           await client.writeRegister(addr, numValues[0])
        }
     }
+
+    // Calc Stats for Write
+    const isTcp = connectionMode === 'tcp'
+    let txBytes = 0
+    let rxBytes = 0
+    const count = (Array.isArray(values) ? values.length : 1)
+
+    if (type === 'coil') {
+       if (isMultiple) {
+         const dataBytes = Math.ceil(count / 8)
+         const reqPdu = 6 + dataBytes
+         txBytes = isTcp ? 7 + reqPdu : 1 + reqPdu + 2
+         rxBytes = isTcp ? 7 + 5 : 1 + 5 + 2 
+       } else {
+         txBytes = isTcp ? 12 : 8
+         rxBytes = txBytes 
+       }
+    } else {
+       if (isMultiple) {
+          const reqPdu = 6 + 2 * count
+          txBytes = isTcp ? 7 + reqPdu : 1 + reqPdu + 2
+          rxBytes = isTcp ? 12 : 8 
+       } else {
+          txBytes = isTcp ? 12 : 8
+          rxBytes = txBytes 
+       }
+    }
+    updateStats(txBytes, rxBytes)
 
     return { success: true }
   } catch (e) {

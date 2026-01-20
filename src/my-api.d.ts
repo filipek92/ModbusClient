@@ -19,6 +19,7 @@ export interface IModbusAPI {
   writeModbus: (type: 'holding' | 'coil', id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[]) => Promise<{ success: boolean; error?: string }>;
   onLog: (callback: (message: string) => void) => void;
   onStatusChange: (callback: (status: string) => void) => void;
+  onTrafficStats: (callback: (stats: { txBytes: number, rxBytes: number, txMsg: number, rxMsg: number }) => void) => void;
 }
 
 declare global {

@@ -43,12 +43,17 @@ export const useModbusStore = defineStore('modbus', () => {
   // State
   const connectionStatus = ref('disconnected');
   const logs = ref<LogEntry[]>([]);
+  const trafficStats = ref({ txBytes: 0, rxBytes: 0, txMsg: 0, rxMsg: 0 });
   const collectors = ref<Collector[]>([]);
   const devices = ref<ActiveDevice[]>([]);
   
   // Connection Settings (UI state)
   const connectionType = ref<'tcp' | 'rtu'>('tcp');
-  const tcpHost = ref('127.0.0.1');
+  
+  // IP History
+  const ipHistory = ref<string[]>(JSON.parse(localStorage.getItem('modbus_ip_history') || '[]'));
+  
+  const tcpHost = ref(ipHistory.value.length > 0 ? ipHistory.value[0] : '127.0.0.1');
   const tcpPort = ref(502);
   const rtuPath = ref('/dev/ttyUSB0');
   const rtuBaudRate = ref(9600);
@@ -82,7 +87,16 @@ export const useModbusStore = defineStore('modbus', () => {
 
   async function connect() {
     if (connectionType.value === 'tcp') {
-      await window.myAPI.connectTCP(tcpHost.value, tcpPort.value);
+      const res = await window.myAPI.connectTCP(tcpHost.value, tcpPort.value);
+      if (res.success) {
+        // Save to history
+        const host = tcpHost.value;
+        const newHistory = ipHistory.value.filter(h => h !== host);
+        newHistory.unshift(host);
+        if (newHistory.length > 10) newHistory.pop();
+        ipHistory.value = newHistory;
+        localStorage.setItem('modbus_ip_history', JSON.stringify(newHistory));
+      }
     } else {
       await window.myAPI.connectRTU(rtuPath.value, rtuBaudRate.value, rtuParity.value, rtuDataBits.value, rtuStopBits.value);
     }
@@ -457,10 +471,11 @@ export const useModbusStore = defineStore('modbus', () => {
     }
   }
 
-
   return {
+    ipHistory,
     connectionStatus,
     logs,
+    trafficStats,
     collectors,
     devices,
     connectionType,

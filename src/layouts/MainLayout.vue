@@ -34,6 +34,10 @@ export default defineComponent({
       window.myAPI.onStatusChange((status: string) => {
         store.setStatus(status);
       });
+
+      window.myAPI.onTrafficStats((stats) => {
+         store.trafficStats = stats;
+      });
     });
 
     return {};

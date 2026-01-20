@@ -24,7 +24,7 @@
   - Prefer `dense` and `outlined` props for inputs.
   - Use `q-btn-toggle` for mode switching.
 - **Type Safety**:
-  - Avoid `any` in `electron-main.ts`. Use union types (e.g., `string | number | boolean`) for incoming IPC args.
+  - Avoid `any` in `electron-main.ts` and `electron-preload.ts`. Use union types (e.g., `string | number | boolean`) for incoming IPC args.
   - Do NOT use `any` in try/catch blocks (`catch (e: any)`). Use `unknown` or handle safely with type checks (`instanceof Error`).
   - Ensure `my-api.d.ts` matches `electron-preload.ts` exactly.
 - **Reactive State**:
