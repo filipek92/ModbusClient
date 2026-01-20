@@ -116,9 +116,11 @@ export const useModbusStore = defineStore('modbus', () => {
       manualData.value = res.data;
       manualReadStart.value = manualStart.value;
       manualResult.value = 'Read Success';
+      addLog(`Read [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${JSON.stringify(res.data)}`);
     } else {
       manualData.value = null;
       manualResult.value = 'Error: ' + res.error;
+      addLog(`Read Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
     }
   }
 
@@ -163,12 +165,15 @@ export const useModbusStore = defineStore('modbus', () => {
 
       if (res.success) {
         manualResult.value = 'Write Success';
+        addLog(`Write [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value} Val:${valString}`);
       } else {
         manualResult.value = 'Write Error: ' + res.error;
+        addLog(`Write Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       manualResult.value = 'Write Exception: ' + msg;
+      addLog(`Write Exception: ${msg}`);
     }
   }
 
@@ -311,119 +316,139 @@ export const useModbusStore = defineStore('modbus', () => {
          groups.get(key)?.push(f);
        });
 
-       for (const [type, fields] of groups) {
-         if (fields.length === 0) continue;
-         // Find min/max range
-         // Note: Some fields are 2 words (uint32).
-         let minAddr = Infinity;
-         let maxAddr = -Infinity;
-
-         fields.forEach(f => {
-           if (f.address < minAddr) minAddr = f.address;
-           const len = (f.dataType === 'uint32' || f.dataType === 'int32' || f.dataType === 'float32') ? 2 : 1;
-           const end = f.address + len - 1;
-           if (end > maxAddr) maxAddr = end;
-         });
-
-         const start = minAddr;
-         const count = maxAddr - minAddr + 1;
+       for (const [type, allFields] of groups) {
+         if (allFields.length === 0) continue;
          
-         const res = await window.myAPI.readModbus(type as RegisterType, d.slaveId, start, count);
-         if (res.success && res.data) {
-           const raw = res.data; // array of numbers (if holding/input) or boolean
-           
-           fields.forEach(f => {
-             // Parse value
-             const offset = f.address - start;
-             // Check bounds
-             if (offset < 0 || offset >= raw.length) return;
+         // Sort fields by address
+         allFields.sort((a, b) => a.address - b.address);
 
-             let val: number | string | boolean = 0;
-             if (typeof raw[0] === 'boolean') {
-                val = raw[offset] as boolean;
-             } else {
-                const regs = raw as number[];
-                // Handle datatypes
-                if (f.dataType === 'uint16') {
-                   val = regs[offset];
-                } else if (f.dataType === 'uint32') {
-                   const low = regs[offset];
-                   const high = regs[offset+1] || 0;
-                   if (f.wordOrder === 'little-endian') {
-                     val = (high << 16) | low; // Actually Pzem manual says: 0x0000 Low 16, 0x0001 High 16??
-                     // Wait, usually Little Endian means first register is Low word.
-                     // The example in pzem yaml said: 0x0001 Low, 0x0002 High => 0x0001 is offset 0.
-                     // So val = (regs[offset+1] << 16) | regs[offset].
-                     
-                     // Standard Modbus usually big-endian words.
-                     val = (high << 16) | low; 
-                     
-                     // If Little-Endian Words:
-                     // 32-bit value in 2 registers.
-                     // Big-Endian (default Modbus): Most Significant Register first.
-                     // Little-Endian: Least Significant Register first.
-                     if (f.wordOrder === 'little-endian') {
-                        val = (regs[offset+1] << 16) | regs[offset];
-                     } else {
-                        val = (regs[offset] << 16) | regs[offset+1];
-                     }
+         // Chunk fields into batches to respect Modbus limits
+         const batches: DecoderField[][] = [];
+         let currentBatch: DecoderField[] = [];
+         let batchStart = -1;
+         
+         // Modbus Max PDU size is usually ~253 bytes.
+         // Read Holding (0x03) response: 1 byte (func) + 1 byte (len) + N*2 bytes data.
+         // Max data bytes = 250 => 125 registers.
+         // Safely stick to 100 registers.
+         // For Coils, 2000 bits is the limit.
+         const MAX_REGISTER_COUNT = (type === 'coil' || type === 'discrete') ? 1900 : 100;
 
-                   } else {
-                      // Default Big Endian
-                      val = (regs[offset] << 16) | regs[offset+1];
+         allFields.forEach(f => {
+            const len = (f.dataType === 'uint32' || f.dataType === 'int32' || f.dataType === 'float32') ? 2 : 1;
+            const fEnd = f.address + len - 1;
+            
+            if (currentBatch.length === 0) {
+               currentBatch = [f];
+               batchStart = f.address;
+            } else {
+               // Calculate hypothetical end if we include this field
+               // If the span from batchStart to fEnd > MAX, start new batch
+               const neededCount = fEnd - batchStart + 1;
+               
+               if (neededCount > MAX_REGISTER_COUNT) {
+                   batches.push(currentBatch);
+                   currentBatch = [f];
+                   batchStart = f.address;
+               } else {
+                   currentBatch.push(f);
+               }
+            }
+         });
+         if (currentBatch.length > 0) batches.push(currentBatch);
+
+         // Process each batch independently
+         for (const fields of batches) {
+            let minAddr = Infinity;
+            let maxAddr = -Infinity;
+
+            fields.forEach(f => {
+              if (f.address < minAddr) minAddr = f.address;
+              const len = (f.dataType === 'uint32' || f.dataType === 'int32' || f.dataType === 'float32') ? 2 : 1;
+              const end = f.address + len - 1;
+              if (end > maxAddr) maxAddr = end;
+            });
+
+            const start = minAddr;
+            const count = maxAddr - minAddr + 1;
+         
+            const res = await window.myAPI.readModbus(type as RegisterType, d.slaveId, start, count);
+            if (res.success && res.data) {
+              const raw = res.data; // array of numbers (if holding/input) or boolean
+              
+              fields.forEach(f => {
+                // Parse value
+                const offset = f.address - start;
+                // Check bounds
+                if (offset < 0 || offset >= raw.length) return;
+
+                let val: number | string | boolean = 0;
+                if (typeof raw[0] === 'boolean') {
+                   val = raw[offset] as boolean;
+                } else {
+                   const regs = raw as number[];
+                   // Handle datatypes
+                   if (f.dataType === 'uint16') {
+                      val = regs[offset];
+                   } else if (f.dataType === 'uint32') {
+                      if (f.wordOrder === 'little-endian') {
+                         val = (regs[offset+1] << 16) | regs[offset];
+                      } else {
+                         val = (regs[offset] << 16) | regs[offset+1];
+                      }
+                      // FIX: JS bitwise ops are 32-bit signed. 
+                      // To get unsigned uint32, use >>> 0
+                      val = (val as number) >>> 0;
+
+                   } else if (f.dataType === 'int16') {
+                      val = regs[offset];
+                      if (val > 32767) val = val - 65536;
                    }
-                   // FIX: JS bitwise ops are 32-bit signed. 
-                   // To get unsigned uint32, use >>> 0
-                   val = (val as number) >>> 0;
-
-                } else if (f.dataType === 'int16') {
-                   val = regs[offset];
-                   if (val > 32767) val = val - 65536;
+                   // TODO: float32, etc.
                 }
-                // TODO: float32, etc.
-             }
 
-             // Apply Scale
-             if (typeof val === 'number' && f.scale) {
-               val = val * f.scale;
-             }
-             
-             // Apply Precision
-             if (typeof val === 'number' && f.precision !== undefined) {
-               val = parseFloat(val.toFixed(f.precision));
-             }
-
-             // Store raw value (scaled and precision adjusted)
-             if (typeof val === 'number' || typeof val === 'boolean') {
-                d.rawValues[f.name] = val;
-             }
-
-             // Apply Map
-             if (typeof val === 'number' && f.map) {
-                const mapVal = f.map[val];
-                if (mapVal) {
-                   val = `${val} (${mapVal})`; // Display format
+                // Apply Scale
+                if (typeof val === 'number' && f.scale) {
+                  val = val * f.scale;
                 }
-             }
+                
+                // Apply Precision
+                if (typeof val === 'number' && f.precision !== undefined) {
+                  val = parseFloat(val.toFixed(f.precision));
+                }
 
-             // Apply Lambda
-             if (f.transform) {
-                try {
-                  const fn = new Function('value', f.transform);
-                  val = fn(val);
-                } catch { /* ignore */ }
-             } else {
-                // Formatting
-                if (f.unit) val = `${val} ${f.unit}`;
-             }
+                // Store raw value (scaled and precision adjusted)
+                if (typeof val === 'number' || typeof val === 'boolean') {
+                   d.rawValues[f.name] = val;
+                }
 
-             d.values[f.name] = val as string | number;
-           });
-           
-           d.error = null;
-           d.lastUpdate = new Date().toLocaleTimeString();
-         } else {
-           d.error = res.error || 'Read Failed';
+                // Apply Map
+                if (typeof val === 'number' && f.map) {
+                   const mapVal = f.map[val];
+                   if (mapVal) {
+                      val = `${val} (${mapVal})`; // Display format
+                   }
+                }
+
+                // Apply Lambda
+                if (f.transform) {
+                   try {
+                     const fn = new Function('value', f.transform);
+                     val = fn(val);
+                   } catch { /* ignore */ }
+                } else {
+                   // Formatting
+                   if (f.unit) val = `${val} ${f.unit}`;
+                }
+
+                d.values[f.name] = val as string | number;
+              });
+              
+              d.error = null;
+              d.lastUpdate = new Date().toLocaleTimeString();
+            } else {
+              d.error = res.error || 'Read Failed';
+            }
          }
        }
 
@@ -454,10 +479,14 @@ export const useModbusStore = defineStore('modbus', () => {
       const res = await window.myAPI.writeModbus('holding', d.slaveId, field.address, [valToWrite]);
       if (!res.success) {
         d.error = 'Write Failed: ' + res.error;
+        addLog(`Write Device Error [${d.name}] ${fieldName}: ${res.error}`);
+      } else {
+        addLog(`Write Device Success [${d.name}] ${fieldName}: ${value}`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       d.error = 'Write Exception: ' + msg;
+      addLog(`Write Device Exception [${d.name}]: ${msg}`);
     }
   }
 

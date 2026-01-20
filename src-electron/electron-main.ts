@@ -223,7 +223,7 @@ ipcMain.handle('read-modbus', async (event, { type, id, start, length }) => {
       msg = String(e)
     }
 
-    sendLog(`Read Error (${type}, ID:${id}, Addr:${start}): ${msg}`)
+    sendLog(`Read Error (${type}, ID:${id}, Addr:${start}, Size: ${length}): ${msg}`)
     return { success: false, error: msg }
   }
 })
