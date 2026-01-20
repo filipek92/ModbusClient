@@ -46,19 +46,51 @@
 
         <q-card-section>
           <div class="row q-col-gutter-md">
-            <!-- Render fields -->
-             <!-- We need to access the decoder definition to know the order and units, or just iterate values if simple -->
-             <!-- Better: Iterate the decoder fields from definition -->
+             <!-- Fields -->
              <div 
                 v-for="field in getFields(dev.decoderId)" 
                 :key="field.name" 
-                class="col-6 col-sm-3 col-md-2"
+                class="col-12 col-sm-6 col-md-4"
              >
-               <q-card flat bordered class="text-center q-pa-sm">
-                 <div class="text-caption text-grey">{{ field.name }}</div>
-                 <div class="text-h6 text-primary">
-                    {{ dev.values[field.name] !== undefined ? dev.values[field.name] : '-' }}
-                 </div>
+               <q-card flat bordered class="q-pa-sm">
+                 <div class="text-caption text-grey q-mb-xs">{{ field.name }} ({{ field.address }})</div>
+                 
+                 <!-- Editable Holding Register -->
+                 <template v-if="field.type === 'holding' || field.type === 'coil'">
+                    <!-- Enum Select -->
+                    <template v-if="field.map">
+                      <q-select
+                        :model-value="dev.rawValues[field.name]"
+                        @update:model-value="val => writeValue(dev.id, field.name, val)"
+                        :options="Object.entries(field.map).map(([k, v]) => ({ label: `${k} (${v})`, value: Number(k) }))"
+                        dense outlined
+                        emit-value
+                        map-options
+                      />
+                    </template>
+                    <!-- Numeric Input -->
+                    <template v-else>
+                      <q-input 
+                        :model-value="dev.rawValues[field.name]" 
+                        @change="val => writeValue(dev.id, field.name, val)"
+                        dense outlined 
+                        type="number"
+                        :suffix="field.unit"
+                      >
+                         <template v-slot:after>
+                            <q-btn round flat dense icon="save" size="sm" color="primary" @click="writeValue(dev.id, field.name, dev.rawValues[field.name])" />
+                         </template>
+                      </q-input>
+                    </template>
+                 </template>
+
+                 <!-- Read-Only (Input/Discrete) -->
+                 <template v-else>
+                   <div class="text-h6 text-primary">
+                      {{ dev.values[field.name] !== undefined ? dev.values[field.name] : '-' }}
+                   </div>
+                 </template>
+
                </q-card>
              </div>
           </div>
@@ -91,8 +123,12 @@ export default defineComponent({
        const d = getDecoder(decoderId);
        return d ? d.fields : [];
     }
+    
+    function writeValue(deviceId: string, fieldName: string, value: string | number) {
+       store.writeDeviceValue(deviceId, fieldName, value);
+    }
 
-    return { store, selectedDecoder, slaveId, addNewDevice, getFields };
+    return { store, selectedDecoder, slaveId, addNewDevice, getFields, writeValue, Object };
   }
 });
 </script>

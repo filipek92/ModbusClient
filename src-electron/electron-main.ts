@@ -25,8 +25,16 @@ function sendStatus(status: string) {
 }
 
 function createWindow () {
+  const iconResource = platform === 'win32'
+    ? 'icons/icon.ico'
+    : 'icons/linux-512x512.png'
+
+  const iconPath = process.env.DEBUGGING
+    ? path.resolve(__dirname, '../../src-electron', iconResource)
+    : path.resolve(__dirname, iconResource)
+
   mainWindow = new BrowserWindow({
-    icon: path.resolve(__dirname, 'icons/icon.png'), // tray icon
+    icon: iconPath,
     width: 1000,
     height: 800,
     useContentSize: true,
@@ -158,7 +166,19 @@ ipcMain.handle('read-modbus', async (event, { type, id, start, length }) => {
 
     return { success: true, data: data.data }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
+    let msg: string
+    if (e instanceof Error) {
+      msg = e.message
+    } else if (typeof e === 'object' && e !== null) {
+      try {
+        msg = JSON.stringify(e)
+      } catch {
+        msg = String(e)
+      }
+    } else {
+      msg = String(e)
+    }
+
     sendLog(`Read Error (${type}, ID:${id}, Addr:${start}): ${msg}`)
     return { success: false, error: msg }
   }

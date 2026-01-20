@@ -11,6 +11,7 @@ export interface DecoderField {
   precision?: number; // Number of decimals
   wordOrder?: 'big-endian' | 'little-endian'; // For 32-bit values (High-Low vs Low-High)
   transform?: string; // JavaScript lambda body: (value, rawContext) => return ...
+  map?: Record<number, string>; // Enum mapping for value
 }
 
 export interface DeviceDecoder {

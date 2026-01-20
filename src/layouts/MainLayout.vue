@@ -2,6 +2,9 @@
   <q-layout view="lHh Lpr lFf">
     <q-header elevated>
       <q-toolbar>
+        <q-avatar>
+          <img src="~assets/app-icon.svg" />
+        </q-avatar>
         <q-toolbar-title>
           Modbus Client
         </q-toolbar-title>

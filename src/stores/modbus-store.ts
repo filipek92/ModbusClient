@@ -34,7 +34,8 @@ export interface ActiveDevice {
   interval: number;
   timerId: ReturnType<typeof setInterval> | null;
   error: string | null;
-  values: Record<string, string | number>; // fieldName -> value
+  values: Record<string, string | number>; // fieldName -> formatted value
+  rawValues: Record<string, number | boolean>; // fieldName -> raw numeric/boolean value (scaled)
 }
 
 export const useModbusStore = defineStore('modbus', () => {
@@ -249,7 +250,8 @@ export const useModbusStore = defineStore('modbus', () => {
       interval: 2000,
       timerId: null,
       error: null,
-      values: {}
+      values: {},
+      rawValues: {}
     };
     devices.value.push(dev);
   }
@@ -375,6 +377,19 @@ export const useModbusStore = defineStore('modbus', () => {
                val = parseFloat(val.toFixed(f.precision));
              }
 
+             // Store raw value (scaled and precision adjusted)
+             if (typeof val === 'number' || typeof val === 'boolean') {
+                d.rawValues[f.name] = val;
+             }
+
+             // Apply Map
+             if (typeof val === 'number' && f.map) {
+                const mapVal = f.map[val];
+                if (mapVal) {
+                   val = `${val} (${mapVal})`; // Display format
+                }
+             }
+
              // Apply Lambda
              if (f.transform) {
                 try {
@@ -396,6 +411,37 @@ export const useModbusStore = defineStore('modbus', () => {
        }
 
     }, d.interval);
+  }
+
+  async function writeDeviceValue(deviceId: string, fieldName: string, value: string | number) {
+    const d = devices.value.find(x => x.id === deviceId);
+    if (!d) return;
+    const decoder = getDecoder(d.decoderId);
+    if (!decoder) return;
+    const field = decoder.fields.find(f => f.name === fieldName);
+    if (!field) return;
+
+    // Convert value back to raw register value
+    let valToWrite = Number(value);
+    
+    // Reverse scale
+    if (field.scale) {
+      valToWrite = valToWrite / field.scale;
+    }
+
+    // Integers only for now
+    valToWrite = Math.round(valToWrite);
+
+    // Write
+    try {
+      const res = await window.myAPI.writeModbus('holding', d.slaveId, field.address, [valToWrite]);
+      if (!res.success) {
+        d.error = 'Write Failed: ' + res.error;
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      d.error = 'Write Exception: ' + msg;
+    }
   }
 
   function stopDevice(id: string) {
@@ -444,6 +490,7 @@ export const useModbusStore = defineStore('modbus', () => {
     addDevice,
     removeDevice,
     toggleDevice,
+    writeDeviceValue,
     availableDecoders // Expose list
   };
 });
