@@ -403,6 +403,13 @@ export const useModbusStore = defineStore('modbus', () => {
                    } else if (f.dataType === 'int16') {
                       val = regs[offset];
                       if (val > 32767) val = val - 65536;
+                   } else if (f.dataType === 'int32') {
+                      if (f.wordOrder === 'little-endian') {
+                         val = (regs[offset+1] << 16) | regs[offset];
+                      } else {
+                         val = (regs[offset] << 16) | regs[offset+1];
+                      }
+                      // JS Bitwise OR produces a 32-bit signed integer by definition, so no extra conversion needed for int32
                    }
                    // TODO: float32, etc.
                 }

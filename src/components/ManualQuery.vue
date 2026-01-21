@@ -41,7 +41,7 @@
       
       <!-- Write Mode: Value(s) -->
        <div v-else class="col-12 col-sm-3">
-        <q-input v-model="store.manualWriteValue" label="Values (comma sep)" dense outlined hint="e.g. 10, 20 or 1, 0, true" />
+        <q-input v-model="store.manualWriteValue" label="Values (comma sep)" dense outlined :hint="valueHint" />
       </div>
 
       <div class="col-12 col-sm-auto flex flex-center">
@@ -91,54 +91,58 @@
   </q-card>
 </template>
 
-<script lang="ts">
-import { defineComponent, computed } from 'vue';
-import { useModbusStore } from 'stores/modbus-store';
+<script lang="ts" setup>
+  import { computed } from 'vue';
+  import { useModbusStore } from 'stores/modbus-store';
 
-export default defineComponent({
-  name: 'ManualQuery',
-  setup() {
-    const store = useModbusStore();
-    const isConnected = computed(() => store.connectionStatus === 'connected');
+  const store = useModbusStore();
+  const isConnected = computed(() => store.connectionStatus === 'connected');
 
-    const typeOptions = computed(() => {
-      // For write mode, restricted options are handled by validation but UI can also help
-      if (store.manualWriteMode === 'write') {
-        return [
-          { label: 'Holding (FC03/06/16)', value: 'holding' },
-          { label: 'Coil (FC01/05/15)', value: 'coil' }
-        ];
-      }
+  const typeOptions = computed(() => {
+    // For write mode, restricted options are handled by validation but UI can also help
+    if (store.manualWriteMode === 'write') {
       return [
-        { label: 'Holding (FC03)', value: 'holding' },
-        { label: 'Input (FC04)', value: 'input' },
-        { label: 'Coil (FC01)', value: 'coil' },
-        { label: 'Discrete (FC02)', value: 'discrete' }
+        { label: 'Holding (FC03/06/16)', value: 'holding' },
+        { label: 'Coil (FC01/05/15)', value: 'coil' }
       ];
+    }
+    return [
+      { label: 'Holding (FC03)', value: 'holding' },
+      { label: 'Input (FC04)', value: 'input' },
+      { label: 'Coil (FC01)', value: 'coil' },
+      { label: 'Discrete (FC02)', value: 'discrete' }
+    ];
+  });
+
+  const valueHint = computed(() => {
+    switch(store.manualType) {
+      case 'holding':
+        return 'e.g. 10, 20';
+      case 'coil':
+        return 'e.g. 1,0,1,0,1 or true,false,true';
+    }
+    return 'aaa';
+  });
+
+  const resultRows = computed(() => {
+    if (!store.manualData) return [];
+    return store.manualData.map((val, idx) => {
+      const addr = store.manualReadStart + idx;
+      let valNum: number;
+      
+      if (typeof val === 'boolean') {
+        valNum = val ? 1 : 0;
+      } else {
+        valNum = val as number;
+      }
+
+      return {
+        regDec: addr,
+        regHex: `0x${addr.toString(16).toUpperCase()}`,
+        valDec: valNum,
+        valHex: `0x${valNum.toString(16).toUpperCase()}`
+      };
     });
+  });
 
-    const resultRows = computed(() => {
-      if (!store.manualData) return [];
-      return store.manualData.map((val, idx) => {
-        const addr = store.manualReadStart + idx;
-        let valNum: number;
-        
-        if (typeof val === 'boolean') {
-          valNum = val ? 1 : 0;
-        } else {
-          valNum = val as number;
-        }
-
-        return {
-          regDec: addr,
-          regHex: `0x${addr.toString(16).toUpperCase()}`,
-          valDec: valNum,
-          valHex: `0x${valNum.toString(16).toUpperCase()}`
-        };
-      });
-    });
-
-    return { store, isConnected, typeOptions, resultRows };
-  }
-});
 </script>
