@@ -40,8 +40,15 @@
               :color="dev.enabled ? 'red' : 'green'" 
               flat round 
               @click="store.toggleDevice(dev.id)" 
-            />
-            <q-btn icon="delete" color="grey" flat round @click="store.removeDevice(dev.id)" />
+            >
+              <q-tooltip>Start/Stop Polling</q-tooltip>
+            </q-btn>
+            <q-btn icon="info" color="blue" flat round @click="showInfo(dev.decoderId)">
+              <q-tooltip>Register Info</q-tooltip>
+            </q-btn>
+            <q-btn icon="delete" color="grey" flat round @click="store.removeDevice(dev.id)">
+              <q-tooltip>Remove Device</q-tooltip>
+            </q-btn>
           </div>
         </q-card-section>
         
@@ -97,6 +104,45 @@
       </q-card>
     </div>
 
+
+    <!-- Info Dialog -->
+    <q-dialog v-model="infoDialog">
+      <q-card style="min-width: 600px; max-width: 80vw;">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">{{ currentInfoDecoder?.name }} - Register Map</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-section class="q-pa-none">
+          <q-table
+            flat
+            :rows="currentInfoDecoder?.fields || []"
+            :columns="infoColumns"
+            row-key="address"
+            :pagination="{ rowsPerPage: 0 }"
+            dense
+          >
+             <template v-slot:body-cell-address="props">
+                <q-td :props="props">
+                  {{ props.row.address }} (0x{{ props.row.address.toString(16).toUpperCase().padStart(4, '0') }})
+                </q-td>
+             </template>
+             <template v-slot:body-cell-map="props">
+                <q-td :props="props">
+                  <div v-if="props.row.map" style="max-width: 200px; white-space: pre-wrap; font-size: 0.8em">
+                    {{ Object.entries(props.row.map).map(([k, v]) => `${k}=${v}`).join(', ') }}
+                  </div>
+                  <span v-else>-</span>
+                </q-td>
+             </template>
+          </q-table>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
   </div>
 </template>
 
@@ -104,6 +150,7 @@
 import { defineComponent, ref } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
 import { getDecoder } from 'src/decoders';
+import type { DeviceDecoder } from 'src/decoders/types';
 
 export default defineComponent({
   name: 'DeviceManager',
@@ -111,6 +158,28 @@ export default defineComponent({
     const store = useModbusStore();
     const selectedDecoder = ref('');
     const slaveId = ref(1);
+
+    // Info Dialog Logic
+    const infoDialog = ref(false);
+    const currentInfoDecoder = ref<DeviceDecoder | null>(null);
+
+    const infoColumns = [
+      { name: 'address', label: 'Address', field: 'address', sortable: true, align: 'left' },
+      { name: 'name', label: 'Name', field: 'name', sortable: true, align: 'left' },
+      { name: 'type', label: 'Type', field: 'type', sortable: true, align: 'left' },
+      { name: 'dataType', label: 'Data Type', field: 'dataType', align: 'left' },
+      { name: 'unit', label: 'Unit', field: 'unit', align: 'left' },
+      { name: 'scale', label: 'Scale', field: 'scale', align: 'right' },
+      { name: 'map', label: 'Map / Enum', field: 'map', align: 'left' },
+    ];
+
+    function showInfo(decoderId: string) {
+       const d = getDecoder(decoderId);
+       if (d) {
+         currentInfoDecoder.value = d;
+         infoDialog.value = true;
+       }
+    }
 
     function addNewDevice() {
       if (selectedDecoder.value) {
@@ -127,7 +196,20 @@ export default defineComponent({
        store.writeDeviceValue(deviceId, fieldName, value);
     }
 
-    return { store, selectedDecoder, slaveId, addNewDevice, getFields, writeValue, Object };
+    return { 
+      store, 
+      selectedDecoder, 
+      slaveId, 
+      addNewDevice, 
+      getFields, 
+      writeValue, 
+      Object,
+      // Info Dialog
+      infoDialog,
+      currentInfoDecoder,
+      infoColumns,
+      showInfo
+    };
   }
 });
 </script>

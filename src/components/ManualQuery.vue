@@ -33,6 +33,9 @@
       <div class="col-6 col-sm-2">
         <q-input v-model.number="store.manualStart" label="Start Addr" type="number" dense outlined />
       </div>
+      <div class="col-6 col-sm-2">
+        <q-input v-model="startHex" :debounce="1500" label="Start Hex" type="text" dense outlined />
+      </div>
       
       <!-- Read Mode: Length -->
       <div v-if="store.manualWriteMode === 'read'" class="col-6 col-sm-2">
@@ -122,6 +125,16 @@
         return 'e.g. 1,0,1,0,1 or true,false,true';
     }
     return 'aaa';
+  });
+
+  const startHex = computed({
+    get() {
+      return '0x' + store.manualStart.toString(16).toUpperCase();
+    },
+    set(val: string) {
+      const parsed = parseInt(val, 16);
+      if (!isNaN(parsed)) store.manualStart = parseInt(val, 16);
+    }
   });
 
   const resultRows = computed(() => {

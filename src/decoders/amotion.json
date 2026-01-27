@@ -1,0 +1,1207 @@
+
+{
+  "profileName": "aMotion Regulace Complete",
+  "version": "2025-02-28",
+  "port": {
+    "port": 502,
+    "requestLimit": "30 requests / 30 seconds"
+  },
+  "totalRegisters": 152,
+  "registers": [
+    {
+      "address": 2301,
+      "name": "fan_running",
+      "description": "Stav ventilátorů (SUP nebo ETA nebo oba)",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2302,
+      "name": "damper_io_state",
+      "description": "Vstupní a výstupní klapky",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2303,
+      "name": "preheater_active",
+      "description": "Stav předehřívače",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2310,
+      "name": "heater_status",
+      "description": "Stav ohřevu",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2311,
+      "name": "heater_a_active",
+      "description": "Stav ohřívače A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2312,
+      "name": "heater_b_active",
+      "description": "Stav ohřívače B",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2321,
+      "name": "heater_a_pump",
+      "description": "Čerpadlo ohřívače A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2322,
+      "name": "heater_b_pump",
+      "description": "Čerpadlo ohřívače B",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2330,
+      "name": "cooler_status",
+      "description": "Stav chladiče A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 2341,
+      "name": "cooler_a_pump",
+      "description": "Čerpadlo chladiče A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6003,
+      "name": "FIRST_FROST_PROTECTION",
+      "description": "1. mrazová ochrana",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6004,
+      "name": "SECOND_FROST_PROTECTION",
+      "description": "2. mrazová ochrana",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6005,
+      "name": "STOP_SIGNAL",
+      "description": "Stop signál",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6006,
+      "name": "DEFROST_HRC",
+      "description": "Odmrazování rekuperátoru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6012,
+      "name": "OVERHEATING",
+      "description": "Přehřátí jednotky",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6013,
+      "name": "UNECONOMIC_TARIFF",
+      "description": "HDO - vyšší tarif",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6014,
+      "name": "UNBALANCED_FLOW",
+      "description": "Nevyrovnaný průtok",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6015,
+      "name": "INSUFFICIENT_FLOW",
+      "description": "Nedostatečný průtok",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6017,
+      "name": "INSUFFICIENT_PREAHEAT",
+      "description": "Nedostatečné předehřátí",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6018,
+      "name": "HEATPUMP_DEFROST",
+      "description": "Odmražování TČ",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6021,
+      "name": "LEARNING",
+      "description": "Učící proces",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6044,
+      "name": "FILTER_CLOGGED_PF1",
+      "description": "Aktivace PF1 - zanesení filtru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6045,
+      "name": "FILTER_CLOGGED_PF2",
+      "description": "Aktivace PF2 - zanesení filtru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6046,
+      "name": "FILTER_CLOGGED_PF3",
+      "description": "Aktivace PF3 - zanesení filtru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6051,
+      "name": "HEATER_OVERLOAD_HEATER_1",
+      "description": "Maximální výkon ohřívače A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6052,
+      "name": "HEATER_OVERLOAD_HEATER_2",
+      "description": "Maximální výkon ohřívače B",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6055,
+      "name": "PRESSURE_SENSOR_SUP",
+      "description": "Porucha manometru v přívodním potrubí",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6056,
+      "name": "PRESSURE_SENSOR_ETA",
+      "description": "Porucha manometru v odtahovém potrubí",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6058,
+      "name": "AI_SIGNAL_TO_FAULT_IN_1",
+      "description": "Aktivace poruchového vstupu IN1",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6059,
+      "name": "AI_SIGNAL_TO_FAULT_IN_2",
+      "description": "Aktivace poruchového vstupu IN2",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6060,
+      "name": "AI_SIGNAL_TO_FAULT_IN_3",
+      "description": "Aktivace poruchového vstupu IN3",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6062,
+      "name": "FROST_PROTECTION_INPUT_DI1",
+      "description": "Protimrazová ochrana vstup Di1",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6063,
+      "name": "FROST_PROTECTION_INPUT_D_2",
+      "description": "Protimrazová ochrana vstup i2",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6064,
+      "name": "FROST_PROTECTION_INPUT_D_3",
+      "description": "Protimrazová ochrana vstup Di3",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6065,
+      "name": "FROST_PROTECTION_INPUT_D_4",
+      "description": "Protimrazová ochrana vstup Di4",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6066,
+      "name": "HEATER_FAULT_HEATER_1",
+      "description": "Porucha ohřívače A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6067,
+      "name": "HEATER_FAULT_HEATER_2",
+      "description": "Porucha ohřívače B",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6070,
+      "name": "COOLER_FAULT_COOLER_1",
+      "description": "Porucha chladiče A",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6071,
+      "name": "BUS_INTERNAL_APR",
+      "description": "Porucha interní sběrnice",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6072,
+      "name": "BUS_EXTERNAL_APR",
+      "description": "Porucha externí sběrnice",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6073,
+      "name": "BUS_ETHERNET_APR",
+      "description": "Porucha komunikace na Ethernetu",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6074,
+      "name": "TEMPERATURE_SENSOR_FAULT_EHA",
+      "description": "Porucha snímání teploty T-EHA",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6075,
+      "name": "TEMPERATURE_SENSOR_FAULT_ETA",
+      "description": "Porucha snímání teploty T-ETA",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6076,
+      "name": "TEMPERATURE_SENSOR_FAULT_ODA",
+      "description": "Porucha snímání teploty T-ODA",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6077,
+      "name": "TEMPERATURE_SENSOR_FAULT_IDA",
+      "description": "Porucha snímání teploty T-IDA",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6078,
+      "name": "TEMPERATURE_SENSOR_FAULT_SUP",
+      "description": "Porucha snímání teploty T-SUP",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6081,
+      "name": "STOP_SIGNAL_RESETABLE_RESETABLE",
+      "description": "Potvrzovaný stop signál",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6082,
+      "name": "FROST_PROTECTION_CAPILLARY",
+      "description": "Protimrazová ochrana - kapilára",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6084,
+      "name": "FROST_HRC",
+      "description": "Zámraz rekuperátoru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6085,
+      "name": "NOT_READY",
+      "description": "Zařízení není připraveno",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6086,
+      "name": "ALL_HEATERS_OVERLOAD",
+      "description": "Přetížení ohřívačů",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6087,
+      "name": "FLOW_LEARNING",
+      "description": "Učicí proces průtoků",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6088,
+      "name": "HEAT_BOOST",
+      "description": "Zvýšení průtoku pro topení",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6089,
+      "name": "UVC_INTERVAL",
+      "description": "UVC lamps change interval",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6090,
+      "name": "INSPECTION",
+      "description": "Interval kontroly zařízení",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6091,
+      "name": "TRIAL_ACK",
+      "description": "ukončení zkušebního provozu",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6099,
+      "name": "COOLER_OVERLOAD_COOLER_1",
+      "description": "Přetížení chladičů",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6104,
+      "name": "FILTER_CLOGGED",
+      "description": "Zanesené filtry",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6105,
+      "name": "FILTER_INTERVAL",
+      "description": "Interval výměny filtrů",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6106,
+      "name": "OVERHEATING_INPUT",
+      "description": "Aktivní vstup přehřátí jednotky",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6107,
+      "name": "COOLER_BLOCKED",
+      "description": "Chod chlazení je blokován",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6108,
+      "name": "DEFROST_BOOST",
+      "description": "Zvýšení průtoku po odmražení rekuperátoru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6109,
+      "name": "FLOW_SENSOR_SUP",
+      "description": "Porucha čidla průtoku přívodu(SUP)",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6110,
+      "name": "FLOW_SENSOR_ETA",
+      "description": "Porucha čidla průtoku odtahu (ETA)",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6111,
+      "name": "FLOW_SENSOR_ODA",
+      "description": "Porucha čidla průtoku čerstvého vzd. (ODA)",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 6112,
+      "name": "Ohřívač A není k dispozici",
+      "description": "Ohřívač A není k dispozici",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6113,
+      "name": "Ohřívač B není k dispozici",
+      "description": "Ohřívač B není k dispozici",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6116,
+      "name": "Chladič A není k dispozici",
+      "description": "Chladič A není k dispozici",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6120,
+      "name": "Maximální čas odpařování",
+      "description": "Maximální čas odpařování",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6121,
+      "name": "Přehřátí odpařovacího elementu",
+      "description": "Přehřátí odpařovacího elementu",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6122,
+      "name": "Čidlo kouře aktivní",
+      "description": "Čidlo kouře aktivní",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6123,
+      "name": "Modbus - porucha komunikace",
+      "description": "Modbus - porucha komunikace",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6126,
+      "name": "Maximální počet připojených klientů",
+      "description": "Maximální počet připojených klientů",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6127,
+      "name": "Probíhá update sw",
+      "description": "Probíhá update sw",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6128,
+      "name": "Probíhá update periferií",
+      "description": "Probíhá update periferií",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6129,
+      "name": "Jednotka nemá platnou konfiguraci",
+      "description": "Jednotka nemá platnou konfiguraci",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6130,
+      "name": "Ztráta komunikace s periferií",
+      "description": "Ztráta komunikace s periferií",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6131,
+      "name": "Porucha trigru",
+      "description": "Porucha trigru",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6132,
+      "name": "Spojení na CLOUD bylo přerušeno",
+      "description": "Spojení na CLOUD bylo přerušeno",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6133,
+      "name": "Odvlhčování je v provozu",
+      "description": "Odvlhčování je v provozu",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6134,
+      "name": "VZT jednotka není dostupná",
+      "description": "VZT jednotka není dostupná",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6135,
+      "name": "VAVbox - nedosažený průtok",
+      "description": "VAVbox - nedosažený průtok",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6136,
+      "name": "VZT jednotka je zastavena",
+      "description": "VZT jednotka je zastavena",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6137,
+      "name": "Detekován nezařazený VAV-box",
+      "description": "Detekován nezařazený VAV-box",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6138,
+      "name": "Probíhá odsávání kouře",
+      "description": "Probíhá odsávání kouře",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 6139,
+      "name": "Ovládání VZT blokováno po odsávání kouře",
+      "description": "Ovládání VZT blokováno po odsávání kouře",
+      "registerType": "DiscreteInput",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 8001,
+      "name": "reset_states",
+      "description": "Reset alarmů",
+      "registerType": "Coil",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 8002,
+      "name": "reset_filters",
+      "description": "Reset intervalu výměny filtru",
+      "registerType": "Coil",
+      "dataType": "bit",
+      "loxoneReady": true
+    },
+    {
+      "address": 8003,
+      "name": "reset_uv",
+      "description": "Reset intervalu výměny UVC lamp",
+      "registerType": "Coil",
+      "dataType": "bit",
+      "loxoneReady": false
+    },
+    {
+      "address": 1001,
+      "name": "work_regime",
+      "description": "Aktuální požadovaný režim",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1002,
+      "name": "temp_request",
+      "description": "Aktuální požadovaná teplota",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1003,
+      "name": "zone_request",
+      "description": "Aktuální požadovaná zóna",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1004,
+      "name": "fan_power_req",
+      "description": "Aktuální požadovaný výkon ventilátorů",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1005,
+      "name": "flow_ventilation_req",
+      "description": "Aktuální požadovaný průtok větrání",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1006,
+      "name": "flow_circulation_req",
+      "description": "Aktuální požadovaný průtok cirkulace",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1007,
+      "name": "pressure_control_request",
+      "description": "Aktuální požadovaný úroveň tlaku",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1008,
+      "name": "circulation_fix_request",
+      "description": "Aktuální požadovaný poměr cirkulace",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1009,
+      "name": "bypass_control_req",
+      "description": "Aktuální povel na klapku bypassu",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1010,
+      "name": "Aktuální sezóna",
+      "description": "Aktuální sezóna",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1011,
+      "name": "Aktuální požadovaný výkon - přívod (SUP)",
+      "description": "Aktuální požadovaný výkon - přívod (SUP)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1012,
+      "name": "Aktuální požadovaný výkon - odvod (ETA)",
+      "description": "Aktuální požadovaný výkon - odvod (ETA)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1013,
+      "name": "Aktuální požadovaný průtok - přívod (SUP)",
+      "description": "Aktuální požadovaný průtok - přívod (SUP)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1014,
+      "name": "Aktuální požadovaný průtok - odvod (SUP)",
+      "description": "Aktuální požadovaný průtok - odvod (SUP)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1101,
+      "name": "temp_oda",
+      "description": "Teplota venkovního vzduchu (T-ODA)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1102,
+      "name": "temp_sup",
+      "description": "Teplota přívodního vzduchu (T-SUP)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1103,
+      "name": "temp_eta",
+      "description": "Teplota odváděného vzduchu (T-ETA)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1104,
+      "name": "temp_ida",
+      "description": "Teplota vnitřního vzduchu (T-IDA)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1105,
+      "name": "temp_eha",
+      "description": "Teplota odpadního vzduchu (T-EHA)",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1106,
+      "name": "temp_oda_mean",
+      "description": "Průměrná teplota venkovního vzduchu",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1107,
+      "name": "fan_sup_factor",
+      "description": "Povel řízení přívodního ventilátoru M-SUP",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1108,
+      "name": "fan_eta_factor",
+      "description": "Povel řízení odtahového ventilátoru M-ETA",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1109,
+      "name": "flow_sup",
+      "description": "Aktuální průtok na ventilátoru M-SUP",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1110,
+      "name": "flow_eta",
+      "description": "Aktuální průtok na ventilátoru M-ETA",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1111,
+      "name": "flow_oda",
+      "description": "Aktuální průtok čerstvého vzduchu",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1112,
+      "name": "bypass_move_time",
+      "description": "Doba pohybu klapky bypassu",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1113,
+      "name": "circulation_factor",
+      "description": "Povel řízení klapky cirkulace",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1114,
+      "name": "preheater_factor",
+      "description": "Povel řízení předehřívače",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1115,
+      "name": "heater_a_factor",
+      "description": "Povel řízení ohřívače A",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1116,
+      "name": "heater_b_factor",
+      "description": "Povel řízení ohřívače B",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1117,
+      "name": "cooler_a_factor",
+      "description": "Povel řízení chladiče",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1119,
+      "name": "mode_current",
+      "description": "Aktuální provozní mód jednotky",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1201,
+      "name": "fan_control_type",
+      "description": "Způsob řízení ventilátorů",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1202,
+      "name": "flow_ventilation_max",
+      "description": "Maximální nastavitelný průtok",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1203,
+      "name": "flow_ventilation_min",
+      "description": "Minimální nastavitelný průtok",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1204,
+      "name": "flow_measure_source",
+      "description": "Zdroj měření průtoku",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1205,
+      "name": "circulation_control_type",
+      "description": "Způsob řízení klapky cirkulace",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1206,
+      "name": "bypass_control_type",
+      "description": "Způsob řízení klapky bypassu",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1207,
+      "name": "preheating_control_type",
+      "description": "Způsob řízení předehřívače",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1208,
+      "name": "heating_control_type",
+      "description": "Způsob řízení ohřevu",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1209,
+      "name": "cooling_control_type",
+      "description": "Způsob řízení chlazení",
+      "registerType": "InputRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1500,
+      "name": "temp_ida",
+      "description": "Vnitřní teplota T-IDA z externího zdroje",
+      "registerType": "HoldingRegister",
+      "dataType": "int16",
+      "loxoneReady": true,
+      "multiplier": 0.1,
+      "unit": "°C"
+    },
+    {
+      "address": 1501,
+      "name": "temp_oda",
+      "description": "Venkovní teplota T-ODA z externího zdroje",
+      "registerType": "HoldingRegister",
+      "dataType": "int16",
+      "loxoneReady": true,
+      "multiplier": 0.1,
+      "unit": "°C"
+    },
+    {
+      "address": 1502,
+      "name": "temp_oda_mean",
+      "description": "Průměrná venkovní teplota T-ODA z externího zdroje",
+      "registerType": "HoldingRegister",
+      "dataType": "int16",
+      "loxoneReady": false,
+      "multiplier": 0.1,
+      "unit": "°C"
+    },
+    {
+      "address": 1001,
+      "name": "work_regime",
+      "description": "Požadovaný režim",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1002,
+      "name": "temp_request",
+      "description": "Požadovaná teplota",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1003,
+      "name": "zone_request",
+      "description": "Požadovaná zóna",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1004,
+      "name": "fan_power_req",
+      "description": "Požadovaný výkon ventilátorů",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1005,
+      "name": "flow_ventilation_req",
+      "description": "Požadovaný průtok větrání",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1006,
+      "name": "flow_circulation_req",
+      "description": "Požadovaný průtok cirkulace",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1007,
+      "name": "pressure_control_request",
+      "description": "Požadovaná úroveň tlaku",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1008,
+      "name": "circulation_fix_request",
+      "description": "Požadovaný poměr cirkulace",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1009,
+      "name": "bypass_control_req",
+      "description": "Povel na klapku bypassu",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1010,
+      "name": "Nastavení sezóny",
+      "description": "Nastavení sezóny",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": true
+    },
+    {
+      "address": 1011,
+      "name": "Požadovaný výkon - přívod (SUP)",
+      "description": "Požadovaný výkon - přívod (SUP)",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1012,
+      "name": "Požadovaný výkon - odvod (ETA)",
+      "description": "Požadovaný výkon - odvod (ETA)",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": false
+    },
+    {
+      "address": 1013,
+      "name": "Požadovaný průtok - přívod (SUP)",
+      "description": "Požadovaný průtok - přívod (SUP)",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": false,
+      "multiplier": 0.1
+    },
+    {
+      "address": 1014,
+      "name": "Požadovaný průtok - odvod (ETA)",
+      "description": "Požadovaný průtok - odvod (ETA)",
+      "registerType": "HoldingRegister",
+      "dataType": "uint16",
+      "loxoneReady": false,
+      "multiplier": 0.1
+    }
+  ]
+}
