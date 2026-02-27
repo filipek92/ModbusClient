@@ -1,7 +1,14 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
 import os from 'os'
+import fs from 'fs'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import https from 'https'
+import http from 'http'
 import ModbusRTU from 'modbus-serial'
+
+const execFileAsync = promisify(execFile)
 
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform()
@@ -67,6 +74,12 @@ function sendStatus(status: string) {
 function sendStats() {
   if (mainWindow) {
     mainWindow.webContents.send('traffic-stats', trafficStats)
+  }
+}
+
+function sendScanProgress(currentId: number) {
+  if (mainWindow) {
+    mainWindow.webContents.send('scan-progress', currentId)
   }
 }
 
@@ -139,6 +152,83 @@ app.on('activate', () => {
 })
 
 // --- Modbus Logic ---
+
+ipcMain.handle('scan-devices', async (event, { startId, endId, timeout }) => {
+  return await clientMutex.runExclusive(async () => {
+    const found: number[] = []
+    
+    // Save current timeout to restore later if connected
+    let originalTimeout = 1000
+    try {
+        originalTimeout = client.getTimeout()
+    } catch {
+        // ignore
+    }
+
+    try {
+      if (!client.isOpen) {
+        throw new Error('Port not open')
+      }
+      
+      sendLog(`Starting scan from ID ${startId} to ${endId} with timeout ${timeout}ms...`)
+      client.setTimeout(timeout)
+
+      for (let id = startId; id <= endId; id++) {
+        sendScanProgress(id)
+        
+        let attempts = 0;
+        let success = false;
+        
+        while (attempts < 3 && !success) {
+            attempts++;
+            try {
+              client.setID(id)
+              // Try to read Holding Register 0. 
+              // If the device exists, it will either reply with data OR an exception (e.g. Illegal Address).
+              // Both mean the device is there. Only timeout means it's likely not there.
+              await client.readHoldingRegisters(0, 1)
+              found.push(id)
+              sendLog(`Found device at ID: ${id}`)
+              success = true;
+            } catch (e: unknown) {
+               const err = e as { name?: string, message?: string }
+               const msg = err.message || ''
+               
+               // Handle timeouts -> device not found (usually)
+               if (msg.includes('Timed out') || msg.includes('timeout') || err.name === 'TransactionTimedOutError') {
+                 // not found, stop retrying for this ID to save time
+                 break;
+               } 
+               // Handle SLAVE DEVICE BUSY (Exception Code 06)
+               else if (msg.includes('Slave device busy') || msg.includes('Code: 6') || msg.includes('Code 6')) {
+                   sendLog(`Device BUSY at ID: ${id}, retrying (${attempts}/3)...`)
+                   await new Promise(r => setTimeout(r, 200)); // wait a bit before retry
+                   continue;
+               }
+               // Other errors (Illegal Address, etc.) -> Device IS there
+               else {
+                 found.push(id)
+                 sendLog(`Found device at ID: ${id} (responded with error: ${msg})`)
+                 success = true; 
+               }
+            }
+        }
+
+        // Allow UI updates/other events to breathe slightly and avoid overwhelming the bus/gateway
+        // Increased delay to prevent "Device busy" errors from gateways with full queues
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      
+      sendLog(`Scan complete. Found ${found.length} devices.`)
+      // restore timeout
+      client.setTimeout(originalTimeout)
+      return found
+    } catch (e) {
+      sendLog(`Scan failed: ${e}`)
+      return []
+    }
+  })
+})
 
 ipcMain.handle('connect-tcp', async (event, { host, port }) => {
   return clientMutex.runExclusive(async () => {
@@ -269,7 +359,7 @@ ipcMain.handle('read-modbus', async (event, { type, id, start, length }) => {
   })
 })
 
-ipcMain.handle('write-modbus', async (event, { type, id, address, values }) => {
+ipcMain.handle('write-modbus', async (event, { type, id, address, values, strategy }) => {
   return clientMutex.runExclusive(async () => {
     try {
       if (connectionStatus !== 'connected') {
@@ -280,35 +370,37 @@ ipcMain.handle('write-modbus', async (event, { type, id, address, values }) => {
       client.setID(parseInt(id))
       const addr = parseInt(address)
       
-      // Check if we are writing one or multiple
-      const isMultiple = Array.isArray(values) && values.length > 1;
+      // Ensure arrays
+      const valArray = Array.isArray(values) ? values : [values];
+
+      const isForcedMultiple = strategy === 'multiple';
+      // If forcedMultiple is true, we treat it as multiple write even if length is 1
+      const useMultipleFunction = isForcedMultiple || valArray.length > 1;
 
       if (type === 'coil') {
         // Coils (FC05/FC15)
-        // Expecting boolean-like values (0/1, true/false)
-        const boolValues = (Array.isArray(values) ? values : [values]).map((v: string | number | boolean) => {
+        const boolValues = valArray.map((v: string | number | boolean) => {
           if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
           return !!v;
         });
 
-        if (isMultiple) {
-          sendLog(`Writing Multiple Coils ID:${id} Addr:${addr} Vals:[${boolValues}]`)
+        if (useMultipleFunction) {
+          sendLog(`Writing Multiple Coils (FC15) ID:${id} Addr:${addr} Vals:[${boolValues}]`)
           await client.writeCoils(addr, boolValues)
         } else {
-          sendLog(`Writing Single Coil ID:${id} Addr:${addr} Val:${boolValues[0]}`)
+          sendLog(`Writing Single Coil (FC05) ID:${id} Addr:${addr} Val:${boolValues[0]}`)
           await client.writeCoil(addr, boolValues[0])
         }
 
       } else {
         // Holding Registers (FC06/FC16)
-        // Ensure values are numbers
-        const numValues = (Array.isArray(values) ? values : [values]).map((v: string | number) => parseInt(String(v)))
+        const numValues = valArray.map((v: string | number) => parseInt(String(v)))
         
-        if (isMultiple) {
-            sendLog(`Writing Multiple Regs ID:${id} Addr:${addr} Vals:[${numValues}]`)
+        if (useMultipleFunction) {
+            sendLog(`Writing Multiple Regs (FC16) ID:${id} Addr:${addr} Vals:[${numValues}]`)
             await client.writeRegisters(addr, numValues)
         } else {
-            sendLog(`Writing Single Reg ID:${id} Addr:${addr} Val:${numValues[0]}`)
+            sendLog(`Writing Single Reg (FC06) ID:${id} Addr:${addr} Val:${numValues[0]}`)
             await client.writeRegister(addr, numValues[0])
         }
       }
@@ -317,25 +409,42 @@ ipcMain.handle('write-modbus', async (event, { type, id, address, values }) => {
       const isTcp = connectionMode === 'tcp'
       let txBytes = 0
       let rxBytes = 0
-      const count = (Array.isArray(values) ? values.length : 1)
+      const count = valArray.length;
 
       if (type === 'coil') {
-        if (isMultiple) {
+        if (useMultipleFunction) {
           const dataBytes = Math.ceil(count / 8)
-          const reqPdu = 6 + dataBytes
+          // FC15 Req: Func(1) + Start(2) + Qty(2) + ByteCount(1) + Data(N)
+          const reqPdu = 1 + 2 + 2 + 1 + dataBytes
+          // RTU: Addr(1) + PDU + CRC(2)
+          // TCP: Header(7) + PDU
           txBytes = isTcp ? 7 + reqPdu : 1 + reqPdu + 2
+          
+          // FC15 Res: Func(1) + Start(2) + Qty(2) = 5 bytes PDU
           rxBytes = isTcp ? 7 + 5 : 1 + 5 + 2 
         } else {
-          txBytes = isTcp ? 12 : 8
+          // FC05 Req: Func(1) + Addr(2) + Val(2) = 5 bytes PDU
+          const reqPdu = 1 + 2 + 2
+          txBytes = isTcp ? 7 + reqPdu : 1 + reqPdu + 2
+          
+          // FC05 Res: Echo Req
           rxBytes = txBytes 
         }
       } else {
-        if (isMultiple) {
-            const reqPdu = 6 + 2 * count
+        // Holding
+        if (useMultipleFunction) {
+            // FC16 Req: Func(1) + Start(2) + Qty(2) + ByteCount(1) + Data(N*2)
+            const reqPdu = 1 + 2 + 2 + 1 + 2 * count
             txBytes = isTcp ? 7 + reqPdu : 1 + reqPdu + 2
-            rxBytes = isTcp ? 12 : 8 
+            
+            // FC16 Res: Func(1) + Start(2) + Qty(2) = 5 bytes PDU
+            rxBytes = isTcp ? 7 + 5 : 1 + 5 + 2 
         } else {
-            txBytes = isTcp ? 12 : 8
+            // FC06 Req: Func(1) + Addr(2) + Val(2) = 5 bytes PDU
+            const reqPdu = 1 + 2 + 2
+            txBytes = isTcp ? 7 + reqPdu : 1 + reqPdu + 2
+            
+            // FC06 Res: Echo Req
             rxBytes = txBytes 
         }
       }
@@ -348,4 +457,279 @@ ipcMain.handle('write-modbus', async (event, { type, id, address, values }) => {
       return { success: false, error: msg }
     }
   })
+})
+
+// --- Decoder File Management ---
+
+function getDefaultDecodersPath(): string {
+  // In dev: src-electron/default-decoders
+  // In production (packager): resources/default-decoders  
+  // In production (builder): resources/default-decoders
+  if (process.env.DEBUGGING) {
+    return path.resolve(__dirname, '../../src-electron/default-decoders')
+  }
+  return path.resolve(process.resourcesPath, 'default-decoders')
+}
+
+function getUserDecodersPath(): string {
+  const p = path.join(app.getPath('userData'), 'decoders')
+  if (!fs.existsSync(p)) {
+    fs.mkdirSync(p, { recursive: true })
+  }
+  return p
+}
+
+interface DecoderFile {
+  id: string;
+  name: string;
+  defaultSlaveId: number;
+  fields: Array<{
+    address: number;
+    type: string;
+    name: string;
+    dataType: string;
+    unit?: string;
+    scale?: number;
+    precision?: number;
+    wordOrder?: string;
+    transform?: string;
+    map?: Record<string, string>;
+  }>;
+}
+
+function readDecoderFile(filePath: string): DecoderFile | null {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8')
+    const obj = JSON.parse(raw) as DecoderFile
+    if (!obj.id || !obj.name || !Array.isArray(obj.fields)) {
+      return null
+    }
+    return obj
+  } catch {
+    return null
+  }
+}
+
+function loadDecodersFromDir(dirPath: string): DecoderFile[] {
+  const result: DecoderFile[] = []
+  if (!fs.existsSync(dirPath)) return result
+  
+  const files = fs.readdirSync(dirPath).filter(f => f.endsWith('.json'))
+  for (const file of files) {
+    const decoder = readDecoderFile(path.join(dirPath, file))
+    if (decoder) result.push(decoder)
+  }
+  return result
+}
+
+// Get all decoders: defaults + user (user overrides defaults with same id)
+ipcMain.handle('get-decoders', async () => {
+  try {
+    const defaults = loadDecodersFromDir(getDefaultDecodersPath())
+    const user = loadDecodersFromDir(getUserDecodersPath())
+    
+    // Merge: user decoders override defaults with same id
+    const merged = new Map<string, DecoderFile & { isDefault: boolean }>()
+    for (const d of defaults) {
+      merged.set(d.id, { ...d, isDefault: true })
+    }
+    for (const d of user) {
+      merged.set(d.id, { ...d, isDefault: false })
+    }
+    
+    return { success: true, data: Array.from(merged.values()) }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false, error: msg }
+  }
+})
+
+// Import decoder from file (user picks a JSON file)
+ipcMain.handle('import-decoder', async () => {
+  try {
+    const result = await dialog.showOpenDialog({
+      title: 'Import Device Decoder',
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+      properties: ['openFile', 'multiSelections']
+    })
+    
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, error: 'Cancelled' }
+    }
+    
+    const imported: string[] = []
+    const errors: string[] = []
+    const userDir = getUserDecodersPath()
+    
+    for (const filePath of result.filePaths) {
+      const decoder = readDecoderFile(filePath)
+      if (decoder) {
+        const targetPath = path.join(userDir, `${decoder.id}.json`)
+        fs.copyFileSync(filePath, targetPath)
+        imported.push(decoder.name)
+        sendLog(`Imported decoder: ${decoder.name} (${decoder.id})`)
+      } else {
+        errors.push(path.basename(filePath))
+      }
+    }
+    
+    return { success: true, imported, errors }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false, error: msg }
+  }
+})
+
+// Export decoder to file (user picks save location)
+ipcMain.handle('export-decoder', async (_event, { decoderId }: { decoderId: string }) => {
+  try {
+    // Find decoder in user dir first, then defaults
+    let decoderData: DecoderFile | null = null
+    const userPath = path.join(getUserDecodersPath(), `${decoderId}.json`)
+    const defaultPath = path.join(getDefaultDecodersPath(), `${decoderId}.json`)
+    
+    if (fs.existsSync(userPath)) {
+      decoderData = readDecoderFile(userPath)
+    } else if (fs.existsSync(defaultPath)) {
+      decoderData = readDecoderFile(defaultPath)
+    }
+    
+    if (!decoderData) {
+      return { success: false, error: 'Decoder not found' }  
+    }
+    
+    const result = await dialog.showSaveDialog({
+      title: 'Export Device Decoder',
+      defaultPath: `${decoderData.id}.json`,
+      filters: [{ name: 'JSON Files', extensions: ['json'] }]
+    })
+    
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'Cancelled' }
+    }
+    
+    fs.writeFileSync(result.filePath, JSON.stringify(decoderData, null, 2), 'utf-8')
+    sendLog(`Exported decoder: ${decoderData.name} → ${result.filePath}`)
+    return { success: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false, error: msg }
+  }
+})
+
+// Save/update a decoder to user directory
+ipcMain.handle('save-decoder', async (_event, { decoder }: { decoder: DecoderFile }) => {
+  try {
+    if (!decoder.id || !decoder.name || !Array.isArray(decoder.fields)) {
+      return { success: false, error: 'Invalid decoder format' }
+    }
+    const userDir = getUserDecodersPath()
+    const targetPath = path.join(userDir, `${decoder.id}.json`)
+    fs.writeFileSync(targetPath, JSON.stringify(decoder, null, 2), 'utf-8')
+    sendLog(`Saved decoder: ${decoder.name} (${decoder.id})`)
+    return { success: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false, error: msg }
+  }
+})
+
+// Delete a user decoder
+ipcMain.handle('delete-decoder', async (_event, { decoderId }: { decoderId: string }) => {
+  try {
+    const userPath = path.join(getUserDecodersPath(), `${decoderId}.json`)
+    if (fs.existsSync(userPath)) {
+      fs.unlinkSync(userPath)
+      sendLog(`Deleted user decoder: ${decoderId}`)
+      return { success: true }
+    }
+    return { success: false, error: 'Decoder not found in user directory' }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false, error: msg }
+  }
+})
+
+// Download decoder pack from URL (tar.gz containing JSON files)
+const DECODER_PACK_URL = 'https://github.com/example/modbus-decoders/releases/latest/download/decoders.tar.gz'
+
+ipcMain.handle('download-decoder-pack', async (_event, { url }: { url?: string }) => {
+  const downloadUrl = url || DECODER_PACK_URL
+  const tmpDir = path.join(app.getPath('temp'), 'modbus-decoder-pack-' + Date.now())
+  const archivePath = path.join(tmpDir, 'decoders.tar.gz')
+  const extractDir = path.join(tmpDir, 'extracted')
+
+  try {
+    fs.mkdirSync(tmpDir, { recursive: true })
+    fs.mkdirSync(extractDir, { recursive: true })
+    sendLog(`Downloading decoder pack from: ${downloadUrl}`)
+
+    // Download using https/http (follow redirects)
+    await new Promise<void>((resolve, reject) => {
+      const getModule = (targetUrl: string) => targetUrl.startsWith('https') ? https : http
+      const download = (targetUrl: string, redirects = 0) => {
+        if (redirects > 5) { reject(new Error('Too many redirects')); return }
+        const mod = getModule(targetUrl)
+        mod.get(targetUrl, { headers: { 'User-Agent': 'ModbusClient' } }, (res) => {
+          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers?.location) {
+            download(res.headers.location, redirects + 1)
+            return
+          }
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode}`))
+            return
+          }
+          const file = fs.createWriteStream(archivePath)
+          res.pipe(file)
+          file.on('finish', () => { file.close(); resolve() })
+          file.on('error', reject)
+        }).on('error', reject)
+      }
+      download(downloadUrl, 0)
+    })
+
+    sendLog('Download complete, extracting...')
+
+    // Extract tar.gz
+    await execFileAsync('tar', ['xzf', archivePath, '-C', extractDir])
+
+    // Find all JSON files recursively
+    const jsonFiles: string[] = []
+    const findJsonFiles = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) findJsonFiles(full)
+        else if (entry.name.endsWith('.json')) jsonFiles.push(full)
+      }
+    }
+    findJsonFiles(extractDir)
+
+    const userDir = getUserDecodersPath()
+    const imported: string[] = []
+    const errors: string[] = []
+
+    for (const jsonFile of jsonFiles) {
+      const decoder = readDecoderFile(jsonFile)
+      if (decoder) {
+        const targetPath = path.join(userDir, `${decoder.id}.json`)
+        fs.copyFileSync(jsonFile, targetPath)
+        imported.push(decoder.name)
+        sendLog(`Pack: imported ${decoder.name} (${decoder.id})`)
+      } else {
+        errors.push(path.basename(jsonFile))
+      }
+    }
+
+    // Cleanup temp
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+
+    sendLog(`Decoder pack: imported ${imported.length} decoders, ${errors.length} errors`)
+    return { success: true, imported, errors }
+  } catch (e) {
+    // Cleanup temp on error
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignore */ }
+    const msg = e instanceof Error ? e.message : String(e)
+    sendLog(`Decoder pack download failed: ${msg}`)
+    return { success: false, error: msg }
+  }
 })

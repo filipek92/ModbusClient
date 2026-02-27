@@ -19,4 +19,5 @@ export interface DeviceDecoder {
   name: string;
   defaultSlaveId: number;
   fields: DecoderField[];
+  isDefault?: boolean;
 }

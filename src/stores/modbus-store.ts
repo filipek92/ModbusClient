@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { availableDecoders, getDecoder } from '../decoders';
+import { availableDecoders, getDecoder, loadDecoders, importDecoder, exportDecoder, saveDecoder, deleteDecoder, downloadDecoderPack } from '../decoders';
 import type { DecoderField } from '../decoders/types';
 
 export interface LogEntry {
@@ -74,6 +74,7 @@ export const useModbusStore = defineStore('modbus', () => {
   // Manual Write State
   const manualWriteValue = ref(''); // string for input, comma separated
   const manualWriteMode = ref<'read' | 'write'>('read');
+  const manualWriteStrategy = ref<'single' | 'multiple'>('single');
 
   // Actions
   function addLog(message: string) {
@@ -160,12 +161,13 @@ export const useModbusStore = defineStore('modbus', () => {
         manualType.value as 'holding'|'coil', // only these 2 are allowed here
         manualSlaveId.value, 
         manualStart.value, 
-        values
+        values,
+        manualWriteStrategy.value
       );
 
       if (res.success) {
         manualResult.value = 'Write Success';
-        addLog(`Write [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value} Val:${valString}`);
+        addLog(`Write [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value} Val:${valString} (Strategy: ${manualWriteStrategy.value})`);
       } else {
         manualResult.value = 'Write Error: ' + res.error;
         addLog(`Write Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
@@ -538,6 +540,7 @@ export const useModbusStore = defineStore('modbus', () => {
     toggleCollector,
     removeCollector,
     manualWriteValue,
+    manualWriteStrategy,
     manualWriteMode,
     manualWrite,
     manualType,
@@ -545,6 +548,12 @@ export const useModbusStore = defineStore('modbus', () => {
     removeDevice,
     toggleDevice,
     writeDeviceValue,
-    availableDecoders // Expose list
+    availableDecoders, // Expose reactive list
+    loadDecoders,
+    importDecoder,
+    exportDecoder,
+    saveDecoder,
+    deleteDecoder,
+    downloadDecoderPack
   };
 });

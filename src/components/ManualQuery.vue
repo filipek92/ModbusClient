@@ -47,6 +47,19 @@
         <q-input v-model="store.manualWriteValue" label="Values (comma sep)" dense outlined :hint="valueHint" />
       </div>
 
+       <!-- Write Mode: Strategy -->
+      <div v-if="store.manualWriteMode === 'write'" class="col-6 col-sm-2">
+         <q-select
+          v-model="store.manualWriteStrategy"
+          :options="[{label: 'Single (FC6/5)', value: 'single'}, {label: 'Multiple (FC16/15)', value: 'multiple'}]"
+          label="Write Strategy"
+          dense
+          outlined
+          emit-value
+          map-options
+        />
+      </div>
+
       <div class="col-12 col-sm-auto flex flex-center">
         <q-btn 
           v-if="store.manualWriteMode === 'read'"

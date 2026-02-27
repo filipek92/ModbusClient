@@ -60,9 +60,19 @@ module.exports = configure(function (/* ctx */) {
     electron: {
       inspectPort: 5858,
       bundler: 'packager', 
-      packager: {},
+      packager: {
+        extraResource: [
+          'src-electron/default-decoders'
+        ]
+      },
       builder: {
-        appId: 'modbus-client'
+        appId: 'modbus-client',
+        extraResources: [
+          {
+            from: 'src-electron/default-decoders',
+            to: 'default-decoders'
+          }
+        ]
       },
       // IMPORTANT: Initialization of the Main Process
       extendElectronMainConf (cfg) {
