@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile)
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform()
 
-let mainWindow: BrowserWindow | undefined | null
+let mainWindow: InstanceType<typeof BrowserWindow> | undefined | null
 const client = new ModbusRTU()
 let connectionStatus = 'disconnected'
 let connectionMode: 'tcp' | 'rtu' = 'tcp'
