@@ -94,7 +94,7 @@ module.exports = configure(function (/* ctx */) {
         linux: {
           target: ['AppImage', 'deb'],
           category: 'Utility',
-          icon: 'src-electron/icons/linux-512x512.png'
+          icon: 'src-electron/icons-linux'
         },
         win: {
           target: ['nsis'],
