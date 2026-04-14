@@ -90,10 +90,15 @@ module.exports = configure(function (/* ctx */) {
         ],
         linux: {
           target: ['AppImage', 'deb'],
-          category: 'Utility'
+          category: 'Utility',
+          icon: 'src-electron/icons/linux-512x512.png'
         },
         win: {
-          target: ['nsis']
+          target: ['nsis'],
+          icon: 'src-electron/icons/icon.ico'
+        },
+        mac: {
+          icon: 'src-electron/icons/icon.icns'
         }
       },
       // IMPORTANT: Initialization of the Main Process
