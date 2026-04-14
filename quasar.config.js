@@ -78,8 +78,7 @@ module.exports = configure(function (/* ctx */) {
           {
             provider: 'github',
             owner: 'filipek92',
-            repo: 'ModbusClient',
-            releaseType: 'release'
+            repo: 'ModbusClient'
           }
         ],
         extraResources: [
