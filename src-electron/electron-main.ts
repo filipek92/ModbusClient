@@ -182,7 +182,7 @@ function createWindow () {
 
   const iconPath = process.env.DEBUGGING
     ? path.resolve(__dirname, '../../src-electron', iconResource)
-    : path.resolve(__dirname, iconResource)
+    : path.resolve(process.resourcesPath, iconResource)
 
   mainWindow = new BrowserWindow({
     icon: iconPath,

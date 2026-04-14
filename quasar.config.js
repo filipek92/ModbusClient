@@ -85,6 +85,10 @@ module.exports = configure(function (/* ctx */) {
           {
             from: 'src-electron/default-decoders',
             to: 'default-decoders'
+          },
+          {
+            from: 'src-electron/icons',
+            to: 'icons'
           }
         ],
         linux: {
