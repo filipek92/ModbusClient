@@ -39,6 +39,7 @@ export interface IModbusAPI {
   readModbus: (type: 'holding' | 'input' | 'coil' | 'discrete', id: number, start: number, length: number) => Promise<{ success: boolean; data?: number[] | boolean[], error?: string }>;
   writeModbus: (type: 'holding' | 'coil', id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[], strategy?: 'single' | 'multiple') => Promise<{ success: boolean; error?: string }>;
   scanDevices: (startId: number, endId: number, timeout: number) => Promise<number[]>;
+  scanValues: (startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
   
   // Decoder Management
   getDecoders: () => Promise<{ success: boolean; data?: IDeviceDecoder[]; error?: string }>;
@@ -52,6 +53,7 @@ export interface IModbusAPI {
   onStatusChange: (callback: (status: string) => void) => void;
   onTrafficStats: (callback: (stats: { txBytes: number, rxBytes: number, txMsg: number, rxMsg: number }) => void) => void;
   onScanProgress: (callback: (id: number) => void) => void;
+  onValueScanProgress: (callback: (progress: number) => void) => void;
 }
 
 declare global {

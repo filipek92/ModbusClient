@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('myAPI', {
   readModbus: (type: string, id: number, start: number, length: number) => ipcRenderer.invoke('read-modbus', { type, id, start, length }),
   writeModbus: (type: string, id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[], strategy?: 'single' | 'multiple') => ipcRenderer.invoke('write-modbus', { type, id, address, values, strategy }),
   scanDevices: (startId: number, endId: number, timeout: number) => ipcRenderer.invoke('scan-devices', { startId, endId, timeout }),
+  scanValues: (startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => ipcRenderer.invoke('scan-values', { startAddr, count, value, types }),
   
   // Decoder Management
   getDecoders: () => ipcRenderer.invoke('get-decoders'),
@@ -34,5 +35,6 @@ contextBridge.exposeInMainWorld('myAPI', {
   
   // Status Listener
   onStatusChange: (callback: (status: string) => void) => ipcRenderer.on('status-change', (_event, value) => callback(value)),
-  onScanProgress: (callback: (id: number) => void) => ipcRenderer.on('scan-progress', (_event, value) => callback(value))
+  onScanProgress: (callback: (id: number) => void) => ipcRenderer.on('scan-progress', (_event, value) => callback(value)),
+  onValueScanProgress: (callback: (progress: number) => void) => ipcRenderer.on('value-scan-progress', (_event, value) => callback(value))
 })

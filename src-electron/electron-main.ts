@@ -83,6 +83,12 @@ function sendScanProgress(currentId: number) {
   }
 }
 
+function sendValueScanProgress(progress: number) {
+  if (mainWindow) {
+    mainWindow.webContents.send('value-scan-progress', progress)
+  }
+}
+
 function resetStats() {
   trafficStats.txBytes = 0
   trafficStats.rxBytes = 0
@@ -229,6 +235,100 @@ ipcMain.handle('scan-devices', async (event, { startId, endId, timeout }) => {
       sendLog(`Scan failed: ${e}`)
       return []
     }
+  })
+})
+
+ipcMain.handle('scan-values', async (event, { startAddr, count, value, types }) => {
+  return await clientMutex.runExclusive(async () => {
+    const matches: { address: number, type: 'holding' | 'input', value: number }[] = []
+    
+    // Chunk size 100 to reduce total requests (Modbus limit is typically ~120-125 registers)
+    const CHUNK = 100
+    // Types to check
+    const checkHolding = types.includes('holding')
+    const checkInput = types.includes('input')
+
+    if (!client.isOpen) {
+        throw new Error('Not connected')
+    }
+
+    const targetVal = parseInt(String(value))
+    const start = parseInt(String(startAddr))
+    const total = parseInt(String(count))
+    const end = start + total
+
+    sendLog(`Scanning ${count} registers starting at ${startAddr} for value ${targetVal}...`)
+
+    for (let addr = start; addr < end; addr += CHUNK) {
+        const len = Math.min(CHUNK, end - addr)
+        
+        // Scan Holding
+        if (checkHolding) {
+            try {
+                // Try bulk read
+                const res = await client.readHoldingRegisters(addr, len)
+                for (let i = 0; i < res.data.length; i++) {
+                    const val = res.data[i]
+                    if (val === targetVal) {
+                        matches.push({ address: addr + i, type: 'holding', value: val })
+                        sendLog(`Match found! Holding Register ${addr+i} = ${val}`)
+                    }
+                }
+            } catch {
+                // Fallback to single read if chunk fails (e.g. gaps in map)
+                for(let i=0; i<len; i++) {
+                    const singleAddr = addr + i;
+                    try {
+                        const resSing = await client.readHoldingRegisters(singleAddr, 1);
+                         if (resSing.data[0] === targetVal) {
+                            matches.push({ address: singleAddr, type: 'holding', value: resSing.data[0] })
+                            sendLog(`Match found! Holding Register ${singleAddr} = ${resSing.data[0]}`)
+                        }
+                    } catch { /* ignore single error */ }
+                    // Delay to prevent flooding proxy/gateway
+                    await new Promise(r => setTimeout(r, 20))
+                }
+            }
+        }
+
+        // Scan Input
+        if (checkInput) {
+             try {
+                const res = await client.readInputRegisters(addr, len)
+                for (let i = 0; i < res.data.length; i++) {
+                    const val = res.data[i]
+                    if (val === targetVal) {
+                        matches.push({ address: addr + i, type: 'input', value: val })
+                        sendLog(`Match found! Input Register ${addr+i} = ${val}`)
+                    }
+                }
+            } catch {
+                 // Fallback
+                 for(let i=0; i<len; i++) {
+                    const singleAddr = addr + i;
+                    try {
+                        const resSing = await client.readInputRegisters(singleAddr, 1);
+                         if (resSing.data[0] === targetVal) {
+                            matches.push({ address: singleAddr, type: 'input', value: resSing.data[0] })
+                            sendLog(`Match found! Input Register ${singleAddr} = ${resSing.data[0]}`)
+                        }
+                    } catch { /* ignore */ }
+                    // Delay to prevent flooding proxy/gateway
+                    await new Promise(r => setTimeout(r, 20))
+                }
+            }
+        }
+        
+        // Let UI breathe and respect proxy
+        await new Promise(r => setTimeout(r, 50))
+        
+        // Calculate and send progress (0-100)
+        const progress = Math.min(100, Math.round(((addr + len - start) / total) * 100))
+        sendValueScanProgress(progress)
+    }
+
+    sendLog(`Scan complete. Found ${matches.length} matches.`)
+    return matches
   })
 })
 

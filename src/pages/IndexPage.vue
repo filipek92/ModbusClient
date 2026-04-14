@@ -12,6 +12,7 @@
         <q-tabs v-model="tab" dense class="text-grey" active-color="primary" indicator-color="primary" align="justify" narrow-indicator>
           <q-tab name="collectors" label="Collectors" />
           <q-tab name="devices" label="Devices" />
+          <q-tab name="scanner" label="Scanner" />
         </q-tabs>
 
         <q-separator />
@@ -23,6 +24,10 @@
 
           <q-tab-panel name="devices" class="q-pa-none q-pt-sm">
              <DeviceManager />
+          </q-tab-panel>
+
+          <q-tab-panel name="scanner" class="q-pa-none q-pt-sm">
+             <ValueScanner />
           </q-tab-panel>
         </q-tab-panels>
       </div>
@@ -42,6 +47,7 @@ import ManualQuery from 'components/ManualQuery.vue';
 import RegularCollectors from 'components/RegularCollectors.vue';
 import DeviceManager from 'components/DeviceManager.vue';
 import LogConsole from 'components/LogConsole.vue';
+import ValueScanner from 'components/ValueScanner.vue';
 
 export default defineComponent({
   name: 'IndexPage',
@@ -50,7 +56,8 @@ export default defineComponent({
     ManualQuery,
     RegularCollectors,
     DeviceManager,
-    LogConsole
+    LogConsole,
+    ValueScanner
   },
   setup() {
     const tab = ref('devices');

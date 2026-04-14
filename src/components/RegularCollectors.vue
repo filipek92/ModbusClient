@@ -28,7 +28,7 @@
           <q-item-section>
             <q-item-label class="text-bold">{{ col.name || 'Unnamed' }}</q-item-label>
             <q-item-label caption>
-              ID: {{col.slaveId}}, Addr: {{col.startAddress}}
+              {{ col.type.toUpperCase() }} | ID: {{col.slaveId}} | Addr: {{col.startAddress}}
             </q-item-label>
           </q-item-section>
 

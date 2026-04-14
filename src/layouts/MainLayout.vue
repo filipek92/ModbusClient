@@ -6,13 +6,33 @@
           <img src="~assets/app-icon.svg" />
         </q-avatar>
         <q-toolbar-title> Modbus Client </q-toolbar-title>
-        <div>v{{ version }}</div>
+        <div class="text-caption q-mr-md">v{{ version }}</div>
+        <q-btn
+          flat dense round
+          icon="menu_book"
+          @click="docsOpen = true"
+        >
+          <q-tooltip>Dokumentace</q-tooltip>
+        </q-btn>
       </q-toolbar>
     </q-header>
 
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!-- Documentation modal -->
+    <q-dialog v-model="docsOpen" :maximized="false">
+      <q-card style="width: 900px; max-width: 92vw; height: 85vh; display: flex; flex-direction: column;">
+        <q-bar class="bg-primary text-white">
+          <q-icon name="menu_book" />
+          <div class="q-ml-sm">Dokumentace</div>
+          <q-space />
+          <q-btn dense flat icon="close" @click="docsOpen = false" />
+        </q-bar>
+        <Documentation style="flex: 1; overflow: hidden;" />
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 
@@ -20,6 +40,7 @@
 import { onMounted, ref } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
 import packageInfo from '../../package.json';
+import Documentation from 'components/Documentation.vue';
 
 defineOptions({
   name: 'MainLayout',
@@ -27,6 +48,7 @@ defineOptions({
 
 const store = useModbusStore();
 const version = ref(packageInfo.version);
+const docsOpen = ref(false);
 
 onMounted(() => {
   try {
