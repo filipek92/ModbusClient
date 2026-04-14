@@ -28,7 +28,7 @@
     </q-card>
 
     <!-- Add Device Dialog -->
-    <q-dialog v-model="addDeviceDialog" maximized transition-show="slide-up" transition-hide="slide-down">
+    <q-dialog v-model="addDeviceDialog" maximized transition-show="slide-up" transition-hide="slide-down" @before-show="blurActive">
       <q-card>
         <q-bar class="bg-primary text-white">
           <q-icon name="devices" />
@@ -137,7 +137,7 @@
         </q-card-section>
 
         <!-- Download Pack URL Dialog -->
-        <q-dialog v-model="downloadUrlDialog">
+        <q-dialog v-model="downloadUrlDialog" @before-show="blurActive">
           <q-card style="min-width: 450px">
             <q-card-section>
               <div class="text-h6">Download Decoder Pack</div>
@@ -161,7 +161,7 @@
     </q-dialog>
 
     <!-- Scan Dialog -->
-    <q-dialog v-model="scanDialog">
+    <q-dialog v-model="scanDialog" @before-show="blurActive">
       <q-card style="min-width: 400px">
         <q-card-section>
           <div class="text-h6">Scan Modbus Bus</div>
@@ -304,7 +304,7 @@
 
 
     <!-- Edit Decoder Dialog -->
-    <q-dialog v-model="editDialog" persistent maximized transition-show="slide-up" transition-hide="slide-down">
+    <q-dialog v-model="editDialog" persistent maximized transition-show="slide-up" transition-hide="slide-down" @before-show="blurActive">
       <q-card>
         <q-bar class="bg-primary text-white">
           <div>{{ editIsNew ? 'New Decoder' : 'Edit Decoder' }}: {{ editDecoder.name || '(unnamed)' }}</div>
@@ -395,7 +395,7 @@
     </q-dialog>
 
     <!-- Info Dialog -->
-    <q-dialog v-model="infoDialog">
+    <q-dialog v-model="infoDialog" @before-show="blurActive">
       <q-card style="min-width: 600px; max-width: 80vw;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">{{ currentInfoDecoder?.name }} - Register Map</div>
@@ -780,6 +780,10 @@ export default defineComponent({
        store.writeDeviceValue(deviceId, fieldName, value);
     }
 
+    function blurActive() {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+
     return { 
       store, 
       getFields, 
@@ -838,7 +842,8 @@ export default defineComponent({
       scanResults,
       currentScanId,
       performScan,
-      useFoundID
+      useFoundID,
+      blurActive
     };
   }
 });

@@ -51,7 +51,7 @@ import { marked } from 'marked';
 defineOptions({ name: 'DocumentationView' });
 
 // Automatically picks up all .md files from docs/ – just add a file and it appears as a new tab
-const rawModules = import.meta.globEager('../../docs/*.md', { as: 'raw' }) as Record<string, string>;
+const rawModules = import.meta.globEager('../../docs/*.md') as Record<string, { default: string }>;
 
 interface DocTab {
   id: string;
@@ -69,10 +69,11 @@ function filenameToLabel(name: string): string {
 
 const docs: DocTab[] = Object.entries(rawModules)
   .sort(([a], [b]) => a.localeCompare(b))
-  .map(([path, raw]) => {
+  .map(([path, module]) => {
     const filename = path.split('/').pop() ?? path;
     const id = filename.replace(/\.md$/i, '');
     const label = filenameToLabel(id);
+    const raw = module.default;
     return { id, label, filename, raw, html: marked.parse(raw) as string };
   });
 

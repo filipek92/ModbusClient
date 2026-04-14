@@ -22,7 +22,7 @@
     </q-page-container>
 
     <!-- Documentation modal -->
-    <q-dialog v-model="docsOpen" :maximized="false">
+    <q-dialog v-model="docsOpen" :maximized="false" @before-show="blurActive">
       <q-card style="width: 900px; max-width: 92vw; height: 85vh; display: flex; flex-direction: column;">
         <q-bar class="bg-primary text-white">
           <q-icon name="menu_book" />
@@ -49,6 +49,10 @@ defineOptions({
 const store = useModbusStore();
 const version = ref(packageInfo.version);
 const docsOpen = ref(false);
+
+function blurActive() {
+  (document.activeElement as HTMLElement | null)?.blur();
+}
 
 onMounted(() => {
   try {

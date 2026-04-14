@@ -23,7 +23,18 @@ module.exports = configure(function (/* ctx */) {
         browser: [ 'es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1' ],
         node: 'node16'
       },
-      vueRouterMode: 'hash', 
+      vueRouterMode: 'hash',
+      extendViteConf (viteConf) {
+        viteConf.plugins = viteConf.plugins || [];
+        viteConf.plugins.push({
+          name: 'md-raw',
+          transform (code, id) {
+            if (id.endsWith('.md')) {
+              return `export default ${JSON.stringify(code)}`;
+            }
+          }
+        });
+      }
     },
     devServer: {
       open: true 
