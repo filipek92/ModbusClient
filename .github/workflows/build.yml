@@ -17,9 +17,9 @@ jobs:
         os: [ ubuntu-latest, windows-latest ]
         include:
           - os: ubuntu-latest
-            build_command: npm run build
+            build_command: npm run build -- --publish always
           - os: windows-latest
-            build_command: npm run build:win
+            build_command: npm run build:win -- --publish always
 
     steps:
       - uses: actions/checkout@v4
