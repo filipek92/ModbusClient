@@ -27,6 +27,17 @@ contextBridge.exposeInMainWorld('myAPI', {
   deleteDecoder: (decoderId: string) => ipcRenderer.invoke('delete-decoder', { decoderId }),
   downloadDecoderPack: (url?: string) => ipcRenderer.invoke('download-decoder-pack', { url }),
 
+  // Auto Update
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  
+  onUpdateAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-available', (_event, info) => callback(info)),
+  onUpdateNotAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
+  onUpdateError: (callback: (err: string) => void) => ipcRenderer.on('update-error', (_event, err) => callback(err)),
+  onUpdateDownloadProgress: (callback: (progress: any) => void) => ipcRenderer.on('update-download-progress', (_event, progress) => callback(progress)),
+  onUpdateDownloaded: (callback: (info: any) => void) => ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
+
   // Logging Event Listener
   onTrafficStats: (callback: (stats: TrafficStats) => void) => {
     ipcRenderer.on('traffic-stats', (_event, stats) => callback(stats))

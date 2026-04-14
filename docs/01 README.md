@@ -84,6 +84,15 @@ Zařízení se popisují JSON soubory – **dekodéry**. Viz podrobný návod v 
 
 ---
 
+## Automatické aktualizace
+
+Aplikace obsahuje integrovaný systém automatických aktualizací přes `electron-updater`.
+- Aplikace při spuštění automaticky kontroluje novější verzi na platformě GitHub.
+- V případě dostupnosti nové verze je uživatel upozorněn vizuální notifikací s možností aktualizaci stáhnout.
+- Jakmile je nová verze stažena, je nabídnuta instalace s následným restartem do nové verze.
+
+---
+
 ## Technické poznámky
 
 - Komunikace renderer ↔ main probíhá přes Electron IPC (`contextBridge`).

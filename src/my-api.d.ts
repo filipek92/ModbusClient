@@ -49,6 +49,16 @@ export interface IModbusAPI {
   deleteDecoder: (decoderId: string) => Promise<{ success: boolean; error?: string }>;
   downloadDecoderPack: (url?: string) => Promise<{ success: boolean; imported?: string[]; errors?: string[]; error?: string }>;
   
+  // Auto Update
+  checkForUpdates: () => Promise<any>;
+  downloadUpdate: () => Promise<any>;
+  installUpdate: () => void;
+  onUpdateAvailable: (callback: (info: any) => void) => void;
+  onUpdateNotAvailable: (callback: (info: any) => void) => void;
+  onUpdateError: (callback: (err: string) => void) => void;
+  onUpdateDownloadProgress: (callback: (progress: any) => void) => void;
+  onUpdateDownloaded: (callback: (info: any) => void) => void;
+
   onLog: (callback: (message: string) => void) => void;
   onStatusChange: (callback: (status: string) => void) => void;
   onTrafficStats: (callback: (stats: { txBytes: number, rxBytes: number, txMsg: number, rxMsg: number }) => void) => void;

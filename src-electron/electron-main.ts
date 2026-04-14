@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
@@ -23,6 +24,75 @@ const trafficStats = {
   txMsg: 0,
   rxMsg: 0
 }
+
+// --- Auto Updater Configuration ---
+
+autoUpdater.autoDownload = false // Let user decide when to download
+autoUpdater.logger = {
+  info: (msg) => sendLog(`Updater: ${msg}`),
+  warn: (msg) => sendLog(`Updater WARN: ${msg}`),
+  error: (msg) => sendLog(`Updater ERROR: ${msg}`)
+}
+
+autoUpdater.on('checking-for-update', () => {
+  sendLog('Checking for update...')
+})
+
+autoUpdater.on('update-available', (info) => {
+  sendLog(`Update available: ${info.version}`)
+  if (mainWindow) {
+    mainWindow.webContents.send('update-available', info)
+  }
+})
+
+autoUpdater.on('update-not-available', (info) => {
+  sendLog(`Update not available: ${info.version}`)
+  if (mainWindow) {
+    mainWindow.webContents.send('update-not-available', info)
+  }
+})
+
+autoUpdater.on('error', (err) => {
+  sendLog(`Update error: ${err}`)
+  if (mainWindow) {
+    mainWindow.webContents.send('update-error', err.message)
+  }
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('update-download-progress', progressObj)
+  }
+})
+
+autoUpdater.on('update-downloaded', (info) => {
+  sendLog(`Update downloaded: ${info.version}`)
+  if (mainWindow) {
+    mainWindow.webContents.send('update-downloaded', info)
+  }
+})
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    return await autoUpdater.checkForUpdates()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { error: msg }
+  }
+})
+
+ipcMain.handle('download-update', async () => {
+  try {
+    return await autoUpdater.downloadUpdate()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { error: msg }
+  }
+})
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall()
+})
 
 class Mutex {
   private _queue: (() => void)[] = []
@@ -137,6 +207,11 @@ function createWindow () {
     // we're on production; no access to devtools pls
     mainWindow.webContents.on('devtools-opened', () => {
       mainWindow?.webContents.closeDevTools()
+    })
+    
+    // Check for updates automatically in production
+    mainWindow.webContents.once('did-finish-load', () => {
+      autoUpdater.checkForUpdatesAndNotify()
     })
   }
 

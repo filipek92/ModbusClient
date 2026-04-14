@@ -46,6 +46,7 @@ The project is structured as a standard Quasar project with the addition of an `
 *   **Manual Query:** Manually send Modbus queries to a device.
 *   **Regular Collectors:** Set up regular data collection from devices.
 *   **Log Console:** View logs from the application and the Modbus communication.
+*   **Auto Updates:** Automatically checks for and installs updates from GitHub Releases.
 
 ## Development
 
