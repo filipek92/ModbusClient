@@ -17,15 +17,9 @@ jobs:
         os: [ ubuntu-latest, windows-latest ]
         include:
           - os: ubuntu-latest
-            artifact_name: linux-build
             build_command: npm run build
-            asset_name: modbus-client-linux
-            asset_path: dist/electron/Packaged
           - os: windows-latest
-            artifact_name: windows-build
             build_command: npm run build:win
-            asset_name: modbus-client-windows
-            asset_path: dist/electron/Packaged
 
     steps:
       - uses: actions/checkout@v4
@@ -38,52 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build application
+      - name: Build and Publish application
         run: ${{ matrix.build_command }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.asset_path }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all workflow run artifacts
-        uses: actions/download-artifact@v4
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-      - name: Zip release assets
-        run: |
-          cd linux-build
-          zip -r ../modbus-client-linux.zip .
-          cd ../windows-build
-          zip -r ../modbus-client-windows.zip .
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./modbus-client-linux.zip
-          asset_name: modbus-client-linux.zip
-          asset_content_type: application/zip
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./modbus-client-windows.zip
-          asset_name: modbus-client-windows.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
