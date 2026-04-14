@@ -309,6 +309,10 @@ export const useModbusStore = defineStore('modbus', () => {
     d.timerId = setInterval(async () => {
        if (connectionStatus.value !== 'connected') return;
 
+       // Re-fetch decoder each tick so edits (e.g. wordOrder) take effect immediately
+       const decoder = getDecoder(d.decoderId);
+       if (!decoder) { d.error = 'Decoder not found'; return; }
+
        // Group fields by RegisterType to minimize requests
        // Simple approach: Iterate groups, find min/max addr
        const groups = new Map<string, DecoderField[]>();
@@ -393,28 +397,50 @@ export const useModbusStore = defineStore('modbus', () => {
                    if (f.dataType === 'uint16') {
                       val = regs[offset];
                    } else if (f.dataType === 'uint32') {
+                      if (offset + 1 >= regs.length) return;
                       if (f.wordOrder === 'little-endian') {
                          val = (regs[offset+1] << 16) | regs[offset];
                       } else {
                          val = (regs[offset] << 16) | regs[offset+1];
                       }
-                      // FIX: JS bitwise ops are 32-bit signed. 
-                      // To get unsigned uint32, use >>> 0
+                      // JS bitwise ops are 32-bit signed → convert to unsigned
                       val = (val as number) >>> 0;
 
                    } else if (f.dataType === 'int16') {
                       val = regs[offset];
                       if (val > 32767) val = val - 65536;
                    } else if (f.dataType === 'int32') {
+                      if (offset + 1 >= regs.length) return;
+                      // Use DataView for reliable signed 32-bit construction
+                      const buf32 = new ArrayBuffer(4);
+                      const view32 = new DataView(buf32);
                       if (f.wordOrder === 'little-endian') {
-                         val = (regs[offset+1] << 16) | regs[offset];
+                         // Low word at lower address (offset), High word at offset+1
+                         view32.setUint16(0, regs[offset + 1], false); // high word → bytes 0-1
+                         view32.setUint16(2, regs[offset],     false); // low word  → bytes 2-3
                       } else {
-                         val = (regs[offset] << 16) | regs[offset+1];
+                         // Big-endian (default): High word at lower address (offset)
+                         view32.setUint16(0, regs[offset],     false); // high word → bytes 0-1
+                         view32.setUint16(2, regs[offset + 1], false); // low word  → bytes 2-3
                       }
-                      // JS Bitwise OR produces a 32-bit signed integer by definition, so no extra conversion needed for int32
-                   }
-                   // TODO: float32, etc.
-                }
+                      val = view32.getInt32(0, false); // read as signed big-endian int32
+                   } else if (f.dataType === 'float32') {
+                      if (offset + 1 < regs.length) {
+                        const buf = new ArrayBuffer(4);
+                        const view = new DataView(buf);
+                        if (f.wordOrder === 'little-endian') {
+                          // Low word at lower register address
+                          view.setUint16(2, regs[offset],   false);
+                          view.setUint16(0, regs[offset+1], false);
+                        } else {
+                          // Big-endian: High word at lower register address (default)
+                          view.setUint16(0, regs[offset],   false);
+                          view.setUint16(2, regs[offset+1], false);
+                        }
+                        val = view.getFloat32(0, false);
+                      }
+                   } // else if float32
+                } // else (typed registers)
 
                 // Apply Scale
                 if (typeof val === 'number' && f.scale) {

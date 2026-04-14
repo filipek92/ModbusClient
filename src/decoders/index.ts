@@ -32,7 +32,8 @@ export async function exportDecoder(decoderId: string): Promise<{ success: boole
 }
 
 export async function saveDecoder(decoder: DeviceDecoder): Promise<{ success: boolean; error?: string }> {
-  const result = await window.myAPI.saveDecoder(decoder);
+  const plain = JSON.parse(JSON.stringify(decoder)) as DeviceDecoder;
+  const result = await window.myAPI.saveDecoder(plain);
   if (result.success) {
     await loadDecoders();
   }

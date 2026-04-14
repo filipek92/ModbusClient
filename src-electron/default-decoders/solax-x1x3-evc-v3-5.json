@@ -1,0 +1,833 @@
+{
+  "id": "solax-x1x3-evc-v3-5",
+  "name": "Solax X1/X3-EVC EV Charger (v3.5)",
+  "defaultSlaveId": 70,
+  "fields": [
+    {
+      "address": 0,
+      "type": "input",
+      "name": "Voltage L1",
+      "dataType": "uint16",
+      "unit": "V",
+      "scale": 0.01,
+      "precision": 1
+    },
+    {
+      "address": 1,
+      "type": "input",
+      "name": "Voltage L2",
+      "dataType": "uint16",
+      "unit": "V",
+      "scale": 0.01,
+      "precision": 1
+    },
+    {
+      "address": 2,
+      "type": "input",
+      "name": "Voltage L3",
+      "dataType": "uint16",
+      "unit": "V",
+      "scale": 0.01,
+      "precision": 1
+    },
+    {
+      "address": 3,
+      "type": "input",
+      "name": "Voltage PE",
+      "dataType": "uint16",
+      "unit": "V",
+      "scale": 0.01,
+      "precision": 1
+    },
+    {
+      "address": 4,
+      "type": "input",
+      "name": "Current L1",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 5,
+      "type": "input",
+      "name": "Current L2",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 6,
+      "type": "input",
+      "name": "Current L3",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 7,
+      "type": "input",
+      "name": "Current PE",
+      "dataType": "uint16",
+      "unit": "mA",
+      "precision": 0
+    },
+    {
+      "address": 8,
+      "type": "input",
+      "name": "Charge Power L1",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 9,
+      "type": "input",
+      "name": "Charge Power L2",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 10,
+      "type": "input",
+      "name": "Charge Power L3",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 11,
+      "type": "input",
+      "name": "Total Charge Power",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 12,
+      "type": "input",
+      "name": "Frequency L1",
+      "dataType": "uint16",
+      "unit": "Hz",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 13,
+      "type": "input",
+      "name": "Frequency L2",
+      "dataType": "uint16",
+      "unit": "Hz",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 14,
+      "type": "input",
+      "name": "Frequency L3",
+      "dataType": "uint16",
+      "unit": "Hz",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 15,
+      "type": "input",
+      "name": "Energy Session",
+      "dataType": "uint16",
+      "unit": "kWh",
+      "scale": 0.1,
+      "precision": 1
+    },
+    {
+      "address": 16,
+      "type": "input",
+      "name": "Energy Total",
+      "dataType": "uint32",
+      "unit": "kWh",
+      "scale": 0.1,
+      "precision": 1,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 18,
+      "type": "input",
+      "name": "Extern Current L1",
+      "dataType": "int16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 19,
+      "type": "input",
+      "name": "Extern Current L2",
+      "dataType": "int16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 20,
+      "type": "input",
+      "name": "Extern Current L3",
+      "dataType": "int16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 21,
+      "type": "input",
+      "name": "Extern Power L1",
+      "dataType": "int16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 22,
+      "type": "input",
+      "name": "Extern Power L2",
+      "dataType": "int16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 23,
+      "type": "input",
+      "name": "Extern Power L3",
+      "dataType": "int16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 24,
+      "type": "input",
+      "name": "Extern Total Power",
+      "dataType": "int16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 25,
+      "type": "input",
+      "name": "CC Voltage",
+      "dataType": "uint16",
+      "unit": "V",
+      "scale": 0.1,
+      "precision": 1
+    },
+    {
+      "address": 26,
+      "type": "input",
+      "name": "CP Voltage",
+      "dataType": "uint16",
+      "unit": "V",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 27,
+      "type": "input",
+      "name": "Charge Duty Cycle",
+      "dataType": "uint16",
+      "unit": "%",
+      "scale": 0.1,
+      "precision": 1
+    },
+    {
+      "address": 28,
+      "type": "input",
+      "name": "PCB Temperature",
+      "dataType": "uint16",
+      "unit": "°C",
+      "precision": 0
+    },
+    {
+      "address": 29,
+      "type": "input",
+      "name": "State",
+      "dataType": "uint16",
+      "map": {
+        "0": "Available",
+        "1": "Preparing",
+        "2": "Charging",
+        "3": "Finishing",
+        "4": "Faulted",
+        "5": "Unavailable",
+        "6": "Reserved",
+        "7": "SuspendedEV",
+        "8": "SuspendedEVSE",
+        "9": "Update",
+        "10": "Card Activation"
+      }
+    },
+    {
+      "address": 30,
+      "type": "input",
+      "name": "Fault Code",
+      "dataType": "uint32",
+      "wordOrder": "little-endian"
+    },
+    {
+      "address": 32,
+      "type": "input",
+      "name": "Type Case",
+      "dataType": "uint16",
+      "map": {
+        "0": "Case B",
+        "1": "Case C"
+      }
+    },
+    {
+      "address": 33,
+      "type": "input",
+      "name": "Type Power",
+      "dataType": "uint16",
+      "map": {
+        "0": "7 kW",
+        "1": "11 kW",
+        "2": "22 kW"
+      }
+    },
+    {
+      "address": 34,
+      "type": "input",
+      "name": "Type Phase",
+      "dataType": "uint16",
+      "map": {
+        "0": "Single phase",
+        "1": "Three phase"
+      }
+    },
+    {
+      "address": 35,
+      "type": "input",
+      "name": "Type Charger",
+      "dataType": "uint16",
+      "map": {
+        "0": "Home",
+        "1": "OCPP"
+      }
+    },
+    {
+      "address": 36,
+      "type": "input",
+      "name": "Type Screen",
+      "dataType": "uint16",
+      "map": {
+        "0": "No screen",
+        "1": "Screen"
+      }
+    },
+    {
+      "address": 37,
+      "type": "input",
+      "name": "Firmware Version",
+      "dataType": "uint16",
+      "precision": 0
+    },
+    {
+      "address": 38,
+      "type": "input",
+      "name": "OCPP Network",
+      "dataType": "uint16",
+      "map": {
+        "0": "Offline",
+        "1": "Online"
+      }
+    },
+    {
+      "address": 39,
+      "type": "input",
+      "name": "RSSI",
+      "dataType": "uint16",
+      "unit": "%",
+      "precision": 0
+    },
+    {
+      "address": 40,
+      "type": "input",
+      "name": "Charge Phase",
+      "dataType": "uint16",
+      "map": {
+        "0": "Three phase",
+        "1": "Single phase L1",
+        "2": "Single phase L2",
+        "3": "Single phase L3"
+      }
+    },
+    {
+      "address": 41,
+      "type": "input",
+      "name": "Unbalanced Power",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 42,
+      "type": "input",
+      "name": "Unbalanced Switch",
+      "dataType": "uint16",
+      "map": {
+        "0": "Off",
+        "1": "On"
+      }
+    },
+    {
+      "address": 43,
+      "type": "input",
+      "name": "Charging Time",
+      "dataType": "uint32",
+      "unit": "s",
+      "precision": 0,
+      "wordOrder": "little-endian"
+    },
+    {
+      "address": 45,
+      "type": "input",
+      "name": "Max Power",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 46,
+      "type": "input",
+      "name": "Bootup Power",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 1548,
+      "type": "holding",
+      "name": "Device Type",
+      "dataType": "uint16",
+      "map": {
+        "0": "External CT",
+        "1": "External meter",
+        "2": "Inverter"
+      }
+    },
+    {
+      "address": 1549,
+      "type": "holding",
+      "name": "Device Mode",
+      "dataType": "uint16",
+      "map": {
+        "0": "STOP",
+        "1": "FAST",
+        "2": "ECO",
+        "3": "GREEN"
+      }
+    },
+    {
+      "address": 1550,
+      "type": "holding",
+      "name": "ECO Gear",
+      "dataType": "uint16",
+      "map": {
+        "1": "6 A",
+        "2": "10 A",
+        "3": "16 A",
+        "4": "20 A",
+        "5": "25 A"
+      }
+    },
+    {
+      "address": 1551,
+      "type": "holding",
+      "name": "Green Gear",
+      "dataType": "uint16",
+      "map": {
+        "1": "3 A",
+        "2": "6 A"
+      }
+    },
+    {
+      "address": 1552,
+      "type": "holding",
+      "name": "Start Charge Mode",
+      "dataType": "uint16",
+      "map": {
+        "0": "Plug and charge",
+        "1": "Swipe card"
+      }
+    },
+    {
+      "address": 1553,
+      "type": "holding",
+      "name": "Over Voltage Setting",
+      "dataType": "uint16",
+      "unit": "V",
+      "precision": 0
+    },
+    {
+      "address": 1554,
+      "type": "holding",
+      "name": "Under Voltage Setting",
+      "dataType": "uint16",
+      "unit": "V",
+      "precision": 0
+    },
+    {
+      "address": 1555,
+      "type": "holding",
+      "name": "Boost Mode",
+      "dataType": "uint16",
+      "map": {
+        "0": "Normal",
+        "1": "Timer Boost",
+        "2": "Smart Boost"
+      }
+    },
+    {
+      "address": 1556,
+      "type": "holding",
+      "name": "Main Breaker Limit",
+      "dataType": "uint16",
+      "unit": "A",
+      "precision": 0
+    },
+    {
+      "address": 1557,
+      "type": "holding",
+      "name": "Electronic Lock",
+      "dataType": "uint16",
+      "map": {
+        "0": "Unlock",
+        "1": "Lock"
+      }
+    },
+    {
+      "address": 1561,
+      "type": "holding",
+      "name": "Energy Total (HR)",
+      "dataType": "uint32",
+      "unit": "kWh",
+      "scale": 0.1,
+      "precision": 1,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 1563,
+      "type": "holding",
+      "name": "OCPP Charge Current",
+      "dataType": "int16",
+      "unit": "A",
+      "scale": 0.001,
+      "precision": 3
+    },
+    {
+      "address": 1564,
+      "type": "holding",
+      "name": "OCPP Offline Mode",
+      "dataType": "uint16",
+      "map": {
+        "0": "Private",
+        "1": "OCPP"
+      }
+    },
+    {
+      "address": 1565,
+      "type": "holding",
+      "name": "Time Zone",
+      "dataType": "int16",
+      "precision": 0
+    },
+    {
+      "address": 1566,
+      "type": "holding",
+      "name": "RTC Seconds",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1567,
+      "type": "holding",
+      "name": "RTC Minutes",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1568,
+      "type": "holding",
+      "name": "RTC Hours",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1569,
+      "type": "holding",
+      "name": "RTC Day",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1570,
+      "type": "holding",
+      "name": "RTC Month",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1571,
+      "type": "holding",
+      "name": "RTC Year",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1572,
+      "type": "holding",
+      "name": "Datahub Charge Current",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 1573,
+      "type": "holding",
+      "name": "Charge Phase (deprecated)",
+      "dataType": "uint16",
+      "map": {
+        "0": "Three phase",
+        "1": "Single phase L1",
+        "2": "Single phase L2",
+        "3": "Single phase L3"
+      }
+    },
+    {
+      "address": 1575,
+      "type": "holding",
+      "name": "Control Command",
+      "dataType": "uint16",
+      "map": {
+        "1": "Available",
+        "2": "Unavailable",
+        "3": "Stop charging",
+        "4": "Start charging",
+        "5": "Reserve",
+        "6": "Cancel reservation"
+      }
+    },
+    {
+      "address": 1576,
+      "type": "holding",
+      "name": "Adjust Current",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 1588,
+      "type": "holding",
+      "name": "Timer Boost Start Hour",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1589,
+      "type": "holding",
+      "name": "Timer Boost Start Minute",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1590,
+      "type": "holding",
+      "name": "Timer Boost End Hour",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1591,
+      "type": "holding",
+      "name": "Timer Boost End Minute",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1592,
+      "type": "holding",
+      "name": "Smart Boost End Hour",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1593,
+      "type": "holding",
+      "name": "Smart Boost End Minute",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1594,
+      "type": "holding",
+      "name": "Smart Boost Set Energy",
+      "dataType": "uint16",
+      "unit": "kWh",
+      "precision": 0
+    },
+    {
+      "address": 1595,
+      "type": "holding",
+      "name": "Charge Phase",
+      "dataType": "uint16",
+      "map": {
+        "0": "Three phase",
+        "1": "Single phase L1",
+        "2": "Single phase L2",
+        "3": "Single phase L3"
+      }
+    },
+    {
+      "address": 1596,
+      "type": "holding",
+      "name": "Unbalanced Power Limit",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 1597,
+      "type": "holding",
+      "name": "Unbalanced Switch (HR)",
+      "dataType": "uint16",
+      "map": {
+        "0": "Off",
+        "1": "On"
+      }
+    },
+    {
+      "address": 1599,
+      "type": "holding",
+      "name": "Min Current",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 1600,
+      "type": "holding",
+      "name": "Slave Address",
+      "dataType": "uint16",
+      "precision": 0
+    },
+    {
+      "address": 1601,
+      "type": "holding",
+      "name": "Mode Value",
+      "dataType": "uint16",
+      "map": {
+        "0": "FAST",
+        "1": "ECO",
+        "2": "GREEN"
+      }
+    },
+    {
+      "address": 1602,
+      "type": "holding",
+      "name": "Parallel Enable",
+      "dataType": "uint16",
+      "map": {
+        "0": "Disabled",
+        "1": "Enabled"
+      }
+    },
+    {
+      "address": 1603,
+      "type": "holding",
+      "name": "Datahub Charge Power",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 1615,
+      "type": "holding",
+      "name": "Limit Current All Mode",
+      "dataType": "uint16",
+      "unit": "A",
+      "scale": 0.01,
+      "precision": 2
+    },
+    {
+      "address": 1616,
+      "type": "holding",
+      "name": "Auth Priority",
+      "dataType": "uint16",
+      "map": {
+        "0": "Network priority",
+        "1": "Local priority",
+        "2": "Local only"
+      }
+    },
+    {
+      "address": 1792,
+      "type": "holding",
+      "name": "Reference Power To EV",
+      "dataType": "int16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 1793,
+      "type": "holding",
+      "name": "Power To EV",
+      "dataType": "int32",
+      "unit": "W",
+      "precision": 0,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 1795,
+      "type": "holding",
+      "name": "PV Reference",
+      "dataType": "uint16",
+      "unit": "W",
+      "precision": 0
+    },
+    {
+      "address": 1796,
+      "type": "holding",
+      "name": "Feedin Power L1",
+      "dataType": "int32",
+      "unit": "W",
+      "precision": 0,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 1798,
+      "type": "holding",
+      "name": "Feedin Power L2",
+      "dataType": "int32",
+      "unit": "W",
+      "precision": 0,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 1800,
+      "type": "holding",
+      "name": "Feedin Power L3",
+      "dataType": "int32",
+      "unit": "W",
+      "precision": 0,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 1802,
+      "type": "holding",
+      "name": "Off-Grid Charging Flag",
+      "dataType": "uint16",
+      "map": {
+        "0": "On grid",
+        "1": "Off grid"
+      }
+    },
+    {
+      "address": 1803,
+      "type": "holding",
+      "name": "Main Breaker Limit (alt)",
+      "dataType": "uint16",
+      "unit": "A",
+      "precision": 0
+    }
+  ]
+}
