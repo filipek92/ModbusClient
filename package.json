@@ -3,7 +3,7 @@
   "version": "1.2.1",
   "description": "Modbus Client with Electron, Vue and Quasar",
   "productName": "Modbus Client",
-  "author": "Filip",
+  "author": "Filip Richter <richter.filip@gmail.com>",
   "private": true,
   "scripts": {
     "lint": "eslint --ext .js,.vue ./",
@@ -31,6 +31,7 @@
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.1",
     "electron": "^33.2.1",
+    "electron-builder": "^24.13.3",
     "electron-packager": "^17.1.2",
     "eslint": "^8.10.0",
     "eslint-plugin-vue": "^9.0.0",

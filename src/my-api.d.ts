@@ -50,14 +50,14 @@ export interface IModbusAPI {
   downloadDecoderPack: (url?: string) => Promise<{ success: boolean; imported?: string[]; errors?: string[]; error?: string }>;
   
   // Auto Update
-  checkForUpdates: () => Promise<any>;
-  downloadUpdate: () => Promise<any>;
+  checkForUpdates: () => Promise<unknown>;
+  downloadUpdate: () => Promise<unknown>;
   installUpdate: () => void;
-  onUpdateAvailable: (callback: (info: any) => void) => void;
-  onUpdateNotAvailable: (callback: (info: any) => void) => void;
+  onUpdateAvailable: (callback: (info: Record<string, unknown>) => void) => void;
+  onUpdateNotAvailable: (callback: (info: Record<string, unknown>) => void) => void;
   onUpdateError: (callback: (err: string) => void) => void;
-  onUpdateDownloadProgress: (callback: (progress: any) => void) => void;
-  onUpdateDownloaded: (callback: (info: any) => void) => void;
+  onUpdateDownloadProgress: (callback: (progress: Record<string, unknown>) => void) => void;
+  onUpdateDownloaded: (callback: (info: Record<string, unknown>) => void) => void;
 
   onLog: (callback: (message: string) => void) => void;
   onStatusChange: (callback: (status: string) => void) => void;

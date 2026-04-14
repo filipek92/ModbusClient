@@ -88,7 +88,8 @@ module.exports = configure(function (/* ctx */) {
           }
         ],
         linux: {
-          target: ['AppImage', 'deb']
+          target: ['AppImage', 'deb'],
+          category: 'Utility'
         },
         win: {
           target: ['nsis']

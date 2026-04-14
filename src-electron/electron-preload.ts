@@ -32,11 +32,11 @@ contextBridge.exposeInMainWorld('myAPI', {
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   
-  onUpdateAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-available', (_event, info) => callback(info)),
-  onUpdateNotAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
+  onUpdateAvailable: (callback: (info: Record<string, unknown>) => void) => ipcRenderer.on('update-available', (_event, info) => callback(info)),
+  onUpdateNotAvailable: (callback: (info: Record<string, unknown>) => void) => ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
   onUpdateError: (callback: (err: string) => void) => ipcRenderer.on('update-error', (_event, err) => callback(err)),
-  onUpdateDownloadProgress: (callback: (progress: any) => void) => ipcRenderer.on('update-download-progress', (_event, progress) => callback(progress)),
-  onUpdateDownloaded: (callback: (info: any) => void) => ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
+  onUpdateDownloadProgress: (callback: (progress: Record<string, unknown>) => void) => ipcRenderer.on('update-download-progress', (_event, progress) => callback(progress)),
+  onUpdateDownloaded: (callback: (info: Record<string, unknown>) => void) => ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
 
   // Logging Event Listener
   onTrafficStats: (callback: (stats: TrafficStats) => void) => {
