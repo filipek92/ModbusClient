@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import os from 'os'
@@ -184,8 +184,10 @@ function createWindow () {
     ? path.resolve(__dirname, '../../src-electron', iconResource)
     : path.resolve(process.resourcesPath, iconResource)
 
+  const appIcon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined
+
   mainWindow = new BrowserWindow({
-    icon: iconPath,
+    icon: appIcon,
     width: 1000,
     height: 800,
     useContentSize: true,
@@ -195,6 +197,10 @@ function createWindow () {
       preload: path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD as string)
     }
   })
+
+  if (appIcon && !appIcon.isEmpty()) {
+    mainWindow.setIcon(appIcon)
+  }
 
   mainWindow.setMenuBarVisibility(false)
 
@@ -218,6 +224,12 @@ function createWindow () {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+// Set app identity before window creation – required for Wayland taskbar icon
+app.setName('ModbusClient')
+if (platform === 'linux' && typeof (app as unknown as { setDesktopName?: (name: string) => void }).setDesktopName === 'function') {
+  (app as unknown as { setDesktopName: (name: string) => void }).setDesktopName('modbus-client.desktop')
 }
 
 app.whenReady().then(createWindow)
