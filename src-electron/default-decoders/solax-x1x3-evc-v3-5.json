@@ -49,7 +49,8 @@
       "precision": 2
     },
     {
-      "address": 5,
+      "address": 5,16 (0x10)	0 (0x0)
+17 (0x11)	10619 (0x297B)
       "type": "input",
       "name": "Current L2",
       "dataType": "uint16",
@@ -270,7 +271,7 @@
       "type": "input",
       "name": "Fault Code",
       "dataType": "uint32",
-      "wordOrder": "little-endian"
+      "wordOrder": "big-endian"
     },
     {
       "address": 32,
@@ -385,7 +386,7 @@
       "dataType": "uint32",
       "unit": "s",
       "precision": 0,
-      "wordOrder": "little-endian"
+      "wordOrder": "big-endian"
     },
     {
       "address": 45,
@@ -512,7 +513,7 @@
       "unit": "kWh",
       "scale": 0.1,
       "precision": 1,
-      "wordOrder": "big-endian"
+      "wordOrder": "little-endian"
     },
     {
       "address": 1563,
@@ -774,7 +775,7 @@
       "dataType": "int32",
       "unit": "W",
       "precision": 0,
-      "wordOrder": "big-endian"
+      "wordOrder": "little-endian"
     },
     {
       "address": 1795,
@@ -791,7 +792,7 @@
       "dataType": "int32",
       "unit": "W",
       "precision": 0,
-      "wordOrder": "big-endian"
+      "wordOrder": "little-endian"
     },
     {
       "address": 1798,
@@ -800,7 +801,7 @@
       "dataType": "int32",
       "unit": "W",
       "precision": 0,
-      "wordOrder": "big-endian"
+      "wordOrder": "little-endian"
     },
     {
       "address": 1800,
@@ -809,7 +810,7 @@
       "dataType": "int32",
       "unit": "W",
       "precision": 0,
-      "wordOrder": "big-endian"
+      "wordOrder": "little-endian"
     },
     {
       "address": 1802,
