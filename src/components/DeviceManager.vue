@@ -197,10 +197,10 @@
 
           <q-list separator v-if="scanResults.length > 0">
              <q-item-label header>Found Devices</q-item-label>
-             <q-item 
-                v-for="id in scanResults" 
-                :key="id" 
-                clickable 
+             <q-item
+                v-for="id in scanResults"
+                :key="id"
+                clickable
                 v-ripple
                 @click="useFoundID(id)"
              >
@@ -209,7 +209,22 @@
                </q-item-section>
                <q-item-section>
                  <q-item-label>Device ID: {{ id }}</q-item-label>
-                 <q-item-label caption>Click to select this ID</q-item-label>
+                 <q-item-label caption v-if="devicesWithSlaveId(id).length">Added: {{ devicesWithSlaveId(id).join(', ') }}</q-item-label>
+                 <q-item-label caption>Click to use in Manual Operation</q-item-label>
+               </q-item-section>
+               <q-item-section side>
+                 <div class="row items-center no-wrap q-gutter-xs" @click.stop>
+                   <q-select
+                     v-model="scanFoundDecoder[id]"
+                     :options="decoderOptions"
+                     label="Decoder"
+                     dense outlined emit-value map-options
+                     style="min-width: 180px"
+                   />
+                   <q-btn flat round dense icon="add_circle" color="positive" :disable="!scanFoundDecoder[id]" @click="addFoundDevice(id)">
+                     <q-tooltip>Add device</q-tooltip>
+                   </q-btn>
+                 </div>
                </q-item-section>
              </q-item>
           </q-list>
@@ -537,6 +552,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, reactive, computed, onMounted, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import { useModbusStore } from 'stores/modbus-store';
 import { getDecoder } from 'src/decoders';
 import type { DeviceDecoder, DecoderField, DeviceOperation } from 'src/decoders/types';
@@ -545,6 +561,7 @@ export default defineComponent({
   name: 'DeviceManager',
   setup() {
     const store = useModbusStore();
+    const $q = useQuasar();
 
     // Load decoders on mount
     onMounted(async () => {
@@ -851,6 +868,7 @@ export default defineComponent({
        isScanning.value = true;
        scanHasRun.value = true;
        scanResults.value = [];
+       for (const k of Object.keys(scanFoundDecoder)) delete scanFoundDecoder[Number(k)];
        currentScanId.value = null;
 
        // Listen for progress updates
@@ -869,9 +887,24 @@ export default defineComponent({
        }
     }
 
+    const scanFoundDecoder = reactive<Record<number, string | null>>({});
+    const decoderOptions = computed(() => store.availableDecoders.map((d: DeviceDecoder) => ({ label: d.name, value: d.id })));
+
+    function devicesWithSlaveId(id: number) {
+       return store.devices.filter(d => d.slaveId === id).map(d => d.name);
+    }
+
     function useFoundID(id: number) {
-       addSlaveId.value = id;
+       store.manualSlaveId = id;
        scanDialog.value = false;
+       $q.notify({ message: `Manual Operation Slave ID set to ${id}`, color: 'primary', timeout: 1500 });
+    }
+
+    function addFoundDevice(id: number) {
+       const decoderId = scanFoundDecoder[id];
+       if (!decoderId) return;
+       store.addDevice(decoderId, id);
+       $q.notify({ message: `Added ${getDecoder(decoderId)?.name ?? decoderId} (ID: ${id})`, color: 'positive', timeout: 1500 });
     }
 
     // Info Dialog Logic
@@ -1036,6 +1069,10 @@ export default defineComponent({
       currentScanId,
       performScan,
       useFoundID,
+      scanFoundDecoder,
+      decoderOptions,
+      devicesWithSlaveId,
+      addFoundDevice,
       blurActive
     };
   }
