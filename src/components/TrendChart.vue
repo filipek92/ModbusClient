@@ -34,6 +34,9 @@
       >
         <span class="series-dot q-mr-xs" :style="{ background: SERIES_COLORS[p.slot] }" />
         {{ describe(p.key).label }}
+        <q-icon v-if="!hasData(p.key)" name="warning" color="warning" class="q-ml-xs">
+          <q-tooltip>No numeric samples yet: is polling running and does the value convert to a number?</q-tooltip>
+        </q-icon>
       </q-chip>
       <q-select
         :model-value="null"
@@ -111,6 +114,11 @@ export default defineComponent({
         .filter(k => !trend.isPlotted(k))
         .map(k => ({ label: describe(k).label, value: k }));
     });
+
+    function hasData(key: string) {
+      void trend.version;
+      return !!trend.get(key)?.t.length;
+    }
 
     /** Index of the first timestamp >= t */
     function lowerBound(ts: number[], t: number) {
@@ -240,7 +248,7 @@ export default defineComponent({
       }
     }
 
-    return { trend, chartEl, windowSec, windowOptions, paused, setPaused, addOptions, describe, exportCsv, SERIES_COLORS };
+    return { trend, chartEl, windowSec, windowOptions, paused, setPaused, addOptions, describe, hasData, exportCsv, SERIES_COLORS };
   }
 });
 </script>

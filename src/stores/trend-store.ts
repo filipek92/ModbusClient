@@ -31,11 +31,17 @@ export const useTrendStore = defineStore('trend', () => {
   const version = ref(0);
   const plotted = ref<PlottedSeries[]>([]);
 
-  /** Stores a sample; values that are not a finite number or boolean are ignored. */
+  /** Stores a sample; anything that is not a number, boolean or a string starting with a number is ignored. */
   function record(key: string, value: unknown, t = Date.now()) {
     let n: number;
     if (typeof value === 'number') n = value;
     else if (typeof value === 'boolean') n = value ? 1 : 0;
+    // Conversions often format the result, e.g. `toFixed(1)` or `${v} °C`; take the leading number
+    else if (typeof value === 'string') {
+      const m = /^\s*[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?(?![\dx.])/i.exec(value);
+      if (!m) return;
+      n = Number(m[0]);
+    }
     // A collector conversion often leaves a single register in the array
     else if (Array.isArray(value) && value.length === 1) return record(key, value[0], t);
     else return;
