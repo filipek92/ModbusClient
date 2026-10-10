@@ -40,7 +40,7 @@ This is a Modbus client application built with Quasar, Vue 3, TypeScript, and Ta
 ## Available Scripts
 
 *   `npm run dev`: Starts the app in development mode (Quasar dev server + Tauri window).
-*   `npm run build`: Builds release bundles into `src-tauri/target/release/bundle/` (AppImage + deb on Linux, NSIS installer on Windows).
+*   `npm run build`: Builds release bundles and copies the installers into `dist/tauri/` (AppImage + deb on Linux, NSIS installer on Windows).
 *   `npm run lint`: Lints the frontend code.
 *   `npm test`: Runs the Rust backend tests.
 
