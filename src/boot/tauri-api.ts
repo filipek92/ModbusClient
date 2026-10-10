@@ -46,6 +46,7 @@ const api: IModbusAPI = {
   saveProfiles: (data) => invoke('save_profiles', { args: { data } }),
   exportProfile: (profile, fileName) => invoke('export_profile', { args: { profile, fileName } }),
   importProfile: () => invoke('import_profile'),
+  exportCsv: (content, fileName) => invoke('export_csv', { args: { content, fileName } }),
 
   // Auto Update
   checkForUpdates: () => invoke('check_for_updates'),

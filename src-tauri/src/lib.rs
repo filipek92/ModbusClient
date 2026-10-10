@@ -1,5 +1,6 @@
 mod args;
 mod decoders;
+mod export;
 mod modbus;
 mod profiles;
 mod updater;
@@ -41,6 +42,7 @@ pub fn run() {
             profiles::save_profiles,
             profiles::export_profile,
             profiles::import_profile,
+            export::export_csv,
             updater::check_for_updates,
             updater::download_update,
             updater::install_update,

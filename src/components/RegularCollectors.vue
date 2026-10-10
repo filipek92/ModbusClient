@@ -33,6 +33,10 @@
           </q-item-section>
 
           <q-item-section side>
+            <TrendButton :series-key="collectorKey(col.id)" />
+          </q-item-section>
+
+          <q-item-section side>
              <div v-if="col.error" class="text-negative text-bold">Error</div>
              <pre v-else class="text-primary text-bold text-h6 q-ma-none" style="font-family: monospace; white-space: pre-wrap; text-align: right;">{{ col.lastValue }}</pre>
           </q-item-section>
@@ -115,9 +119,12 @@
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
+import { collectorKey } from 'stores/trend-store';
+import TrendButton from 'components/TrendButton.vue';
 
 export default defineComponent({
   name: 'RegularCollectors',
+  components: { TrendButton },
   setup() {
     const store = useModbusStore();
     const isConnected = computed(() => store.connectionStatus === 'connected');
@@ -129,7 +136,7 @@ export default defineComponent({
       { label: 'Discrete (FC02)', value: 'discrete' }
     ];
 
-    return { store, isConnected, typeOptions };
+    return { store, isConnected, typeOptions, collectorKey };
   }
 });
 </script>

@@ -65,6 +65,7 @@ export interface IModbusAPI {
   saveProfiles: (data: object) => Promise<{ success: boolean; error?: string }>;
   exportProfile: (profile: object, fileName: string) => Promise<{ success: boolean; error?: string }>;
   importProfile: () => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
+  exportCsv: (content: string, fileName: string) => Promise<{ success: boolean; error?: string }>;
   
   // Auto Update
   checkForUpdates: () => Promise<unknown>;

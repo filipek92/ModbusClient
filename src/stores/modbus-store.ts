@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { availableDecoders, getDecoder, loadDecoders, importDecoder, exportDecoder, saveDecoder, deleteDecoder, downloadDecoderPack } from '../decoders';
 import type { DecoderField, OperationValue } from '../decoders/types';
 import type { ConnectionType, Workspace } from './workspace';
+import { useTrendStore, collectorKey, deviceKey, deviceFieldKey } from './trend-store';
 
 export interface LogEntry {
   id: number;
@@ -41,6 +42,8 @@ export interface ActiveDevice {
 }
 
 export const useModbusStore = defineStore('modbus', () => {
+  const trend = useTrendStore();
+
   // State
   const connectionStatus = ref('disconnected');
   const logs = ref<LogEntry[]>([]);
@@ -252,6 +255,7 @@ export const useModbusStore = defineStore('modbus', () => {
           const val = convert(res.data);
           c.lastValue = val;
           c.error = null;
+          trend.record(collectorKey(c.id), val);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           c.error = 'JS Error: ' + msg;
@@ -276,6 +280,7 @@ export const useModbusStore = defineStore('modbus', () => {
   function removeCollector(id: string) {
     stopCollector(id);
     collectors.value = collectors.value.filter(c => c.id !== id);
+    trend.forget(collectorKey(id));
   }
 
   // --- Device Logic ---
@@ -303,6 +308,7 @@ export const useModbusStore = defineStore('modbus', () => {
   function removeDevice(id: string) {
     stopDevice(id);
     devices.value = devices.value.filter(d => d.id !== id);
+    trend.forget(deviceKey(id));
   }
 
   function toggleDevice(id: string) {
@@ -476,6 +482,7 @@ export const useModbusStore = defineStore('modbus', () => {
                 // Store raw value (scaled and precision adjusted)
                 if (typeof val === 'number' || typeof val === 'boolean') {
                    d.rawValues[f.name] = val;
+                   trend.record(deviceFieldKey(d.id, f.name), val);
                 }
 
                 // Apply Map
@@ -678,6 +685,8 @@ export const useModbusStore = defineStore('modbus', () => {
   function applyWorkspace(ws: Workspace) {
     devices.value.forEach(d => stopDevice(d.id));
     collectors.value.forEach(c => stopCollector(c.id));
+    trend.clear();
+    trend.plotted = [];
 
     const c = ws.connection;
     connectionType.value = c.type;

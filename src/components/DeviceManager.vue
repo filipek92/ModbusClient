@@ -291,7 +291,11 @@
                 class="col-12 col-sm-6 col-md-4"
              >
                <q-card flat bordered class="q-pa-sm">
-                 <div class="text-caption text-grey q-mb-xs">{{ field.name }} ({{ field.address }})</div>
+                 <div class="row items-center no-wrap q-mb-xs">
+                   <div class="text-caption text-grey ellipsis">{{ field.name }} ({{ field.address }})</div>
+                   <q-space />
+                   <TrendButton :series-key="deviceFieldKey(dev.id, field.name)" size="xs" />
+                 </div>
                  
                  <!-- Editable Holding Register -->
                  <template v-if="(field.type === 'holding' || field.type === 'coil') && !field.readOnly">
@@ -558,11 +562,14 @@
 import { defineComponent, ref, reactive, computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { useModbusStore } from 'stores/modbus-store';
+import { deviceFieldKey } from 'stores/trend-store';
+import TrendButton from 'components/TrendButton.vue';
 import { getDecoder } from 'src/decoders';
 import type { DeviceDecoder, DecoderField, DeviceOperation } from 'src/decoders/types';
 
 export default defineComponent({
   name: 'DeviceManager',
+  components: { TrendButton },
   setup() {
     const store = useModbusStore();
     const $q = useQuasar();
@@ -1015,6 +1022,7 @@ export default defineComponent({
 
     return { 
       store, 
+      deviceFieldKey,
       getFields, 
       writeValue, 
       Object,

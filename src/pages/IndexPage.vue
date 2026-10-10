@@ -33,6 +33,11 @@
       </div>
     </div>
 
+    <!-- Trend chart, shown once a value is picked with its chart button -->
+    <div v-if="trend.plotted.length" class="q-mt-md">
+      <TrendChart />
+    </div>
+
     <!-- Bottom -->
     <div class="q-mt-md">
       <LogConsole />
@@ -48,6 +53,8 @@ import RegularCollectors from 'components/RegularCollectors.vue';
 import DeviceManager from 'components/DeviceManager.vue';
 import LogConsole from 'components/LogConsole.vue';
 import ValueScanner from 'components/ValueScanner.vue';
+import TrendChart from 'components/TrendChart.vue';
+import { useTrendStore } from 'stores/trend-store';
 
 export default defineComponent({
   name: 'IndexPage',
@@ -57,11 +64,13 @@ export default defineComponent({
     RegularCollectors,
     DeviceManager,
     LogConsole,
-    ValueScanner
+    ValueScanner,
+    TrendChart
   },
   setup() {
     const tab = ref('devices');
-    return { tab };
+    const trend = useTrendStore();
+    return { tab, trend };
   }
 });
 </script>
