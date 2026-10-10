@@ -338,9 +338,9 @@ export const useModbusStore = defineStore('modbus', () => {
          // Modbus Max PDU size is usually ~253 bytes.
          // Read Holding (0x03) response: 1 byte (func) + 1 byte (len) + N*2 bytes data.
          // Max data bytes = 250 => 125 registers.
-         // Safely stick to 100 registers.
+         // Safely stick to 100 registers, unless the decoder sets a lower device limit.
          // For Coils, 2000 bits is the limit.
-         const MAX_REGISTER_COUNT = (type === 'coil' || type === 'discrete') ? 1900 : 100;
+         const MAX_REGISTER_COUNT = (type === 'coil' || type === 'discrete') ? 1900 : Math.min(100, decoder.maxReadCount || 100);
 
          allFields.forEach(f => {
             const len = (f.dataType === 'uint32' || f.dataType === 'int32' || f.dataType === 'float32') ? 2 : 1;

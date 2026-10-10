@@ -27,6 +27,7 @@ Dekodér je prostý JSON soubor, který lze:
 | `id` | `string` | ✅ | Unikátní identifikátor dekodéru (bez mezer, bez diakritiky, doporučeno kebab-case) |
 | `name` | `string` | ✅ | Zobrazovaný název zařízení v aplikaci |
 | `defaultSlaveId` | `number` | ✅ | Výchozí Slave ID na Modbus sběrnici (1–247). Lze přepsat při přidávání zařízení. |
+| `maxReadCount` | `number` | – | Maximální počet registrů v jednom čtecím požadavku. Pro zařízení, která neumí číst velké bloky (např. QDY30A max. 20). Výchozí: `100` |
 | `fields` | `array` | ✅ | Seznam registrů / polí ke čtení (viz níže) |
 
 ---

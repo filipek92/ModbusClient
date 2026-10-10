@@ -28,6 +28,7 @@ export interface IDeviceDecoder {
   id: string;
   name: string;
   defaultSlaveId: number;
+  maxReadCount?: number;
   fields: IDecoderField[];
   isDefault?: boolean;
 }

@@ -1,0 +1,113 @@
+{
+  "id": "qdy30a-level-transmitter",
+  "name": "QDY30A Level Transmitter (RS485)",
+  "defaultSlaveId": 1,
+  "maxReadCount": 20,
+  "fields": [
+    {
+      "address": 22,
+      "type": "holding",
+      "name": "Measured Value",
+      "dataType": "float32",
+      "precision": 3,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 4,
+      "type": "holding",
+      "name": "Measured Value (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 2,
+      "type": "holding",
+      "name": "Unit",
+      "dataType": "uint16",
+      "map": {
+        "0": "MPa",
+        "1": "kPa",
+        "2": "Pa",
+        "3": "bar",
+        "4": "mbar",
+        "5": "kg/cm²",
+        "6": "psi",
+        "7": "mH2O",
+        "8": "mmH2O",
+        "9": "inH2O",
+        "10": "H2O",
+        "11": "mHg",
+        "12": "mmHg",
+        "13": "inHg",
+        "14": "atm",
+        "15": "Torr",
+        "16": "m",
+        "17": "cm",
+        "18": "mm",
+        "19": "kg",
+        "20": "°C",
+        "21": "pH",
+        "22": "°F",
+        "23": "None"
+      }
+    },
+    {
+      "address": 3,
+      "type": "holding",
+      "name": "Decimal Point",
+      "dataType": "uint16",
+      "map": {
+        "0": "####",
+        "1": "###.#",
+        "2": "##.##",
+        "3": "#.###",
+        "4": ".####"
+      }
+    },
+    {
+      "address": 5,
+      "type": "holding",
+      "name": "Range Zero Point (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 6,
+      "type": "holding",
+      "name": "Range Full Point (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 12,
+      "type": "holding",
+      "name": "Zero Offset (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 0,
+      "type": "holding",
+      "name": "Slave Address",
+      "dataType": "uint16"
+    },
+    {
+      "address": 1,
+      "type": "holding",
+      "name": "Baud Rate",
+      "dataType": "uint16",
+      "map": {
+        "0": "1200",
+        "1": "2400",
+        "2": "4800",
+        "3": "9600",
+        "4": "19200",
+        "5": "38400",
+        "6": "57600",
+        "7": "115200"
+      }
+    },
+    {
+      "address": 37,
+      "type": "holding",
+      "name": "Parity",
+      "dataType": "uint16"
+    }
+  ]
+}

@@ -317,11 +317,14 @@
             <div class="col-12 col-sm-3">
               <q-input v-model="editDecoder.id" label="ID (unique slug)" dense outlined :rules="[(v: string) => !!v || 'Required']" />
             </div>
-            <div class="col-12 col-sm-5">
+            <div class="col-12 col-sm-3">
               <q-input v-model="editDecoder.name" label="Device Name" dense outlined :rules="[(v: string) => !!v || 'Required']" />
             </div>
             <div class="col-12 col-sm-2">
               <q-input v-model.number="editDecoder.defaultSlaveId" label="Default Slave ID" type="number" dense outlined />
+            </div>
+            <div class="col-12 col-sm-2">
+              <q-input v-model.number="editDecoder.maxReadCount" label="Max Registers / Read" type="number" dense outlined clearable hint="Empty = 100" />
             </div>
             <div class="col-12 col-sm-2 flex items-center">
               <q-btn label="Add Field" icon="add" color="primary" dense @click="addEditField" class="full-width" />
@@ -549,10 +552,11 @@ export default defineComponent({
       _mapString: string;
     }
 
-    const editDecoder = reactive<{ id: string; name: string; defaultSlaveId: number; fields: EditField[] }>({
+    const editDecoder = reactive<{ id: string; name: string; defaultSlaveId: number; maxReadCount: number | null; fields: EditField[] }>({
       id: '',
       name: '',
       defaultSlaveId: 1,
+      maxReadCount: null,
       fields: []
     });
 
@@ -628,6 +632,7 @@ export default defineComponent({
       editDecoder.id = d.id;
       editDecoder.name = d.name;
       editDecoder.defaultSlaveId = d.defaultSlaveId;
+      editDecoder.maxReadCount = d.maxReadCount ?? null;
       editDecoder.fields = d.fields.map((f, i) => fieldToEdit(f, i));
       editDialog.value = true;
     }
@@ -638,6 +643,7 @@ export default defineComponent({
       editDecoder.id = '';
       editDecoder.name = '';
       editDecoder.defaultSlaveId = 1;
+      editDecoder.maxReadCount = null;
       editDecoder.fields = [];
       editDialog.value = true;
     }
@@ -694,6 +700,7 @@ export default defineComponent({
           return clean;
         })
       };
+      if (editDecoder.maxReadCount) decoder.maxReadCount = editDecoder.maxReadCount;
       const result = await store.saveDecoder(decoder);
       if (result.success) {
         editDialog.value = false;

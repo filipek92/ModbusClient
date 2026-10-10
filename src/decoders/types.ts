@@ -18,6 +18,7 @@ export interface DeviceDecoder {
   id: string;
   name: string;
   defaultSlaveId: number;
+  maxReadCount?: number; // Max registers per single read request (device limit)
   fields: DecoderField[];
   isDefault?: boolean;
 }
