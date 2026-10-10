@@ -216,6 +216,7 @@ Některá nastavení nejdou změnit jedním zápisem do registru – např. u QD
       { "name": "newAddress", "label": "New Slave Address", "min": 1, "max": 247, "default": "{slaveId}" }
     ],
     "steps": [
+      { "action": "checkFree", "slaveId": "{newAddress}" },
       { "action": "write", "address": 0, "value": "{newAddress}" },
       { "action": "delay", "ms": 300 },
       { "action": "write", "address": 15, "value": 0, "slaveId": "{newAddress}" }
@@ -252,7 +253,7 @@ Některá nastavení nejdou změnit jedním zápisem do registru – např. u QD
 
 | Vlastnost | Typ | Popis |
 |---|---|---|
-| `action` | `string` | `"write"` nebo `"delay"` |
+| `action` | `string` | `"write"`, `"delay"` nebo `"checkFree"` |
 | `type` | `string` | `"holding"` (výchozí) nebo `"coil"` |
 | `address` | `number` | Adresa registru (0-based) |
 | `value` | `number \| string \| array` | Hodnota k zápisu – číslo nebo odkaz `"{param}"`; pole = zápis více registrů |
@@ -260,6 +261,9 @@ Některá nastavení nejdou změnit jedním zápisem do registru – např. u QD
 | `slaveId` | `number \| string` | Slave ID pro tento krok; výchozí je aktuální ID zařízení. Např. `"{newAddress}"` pro potvrzení na nové adrese |
 | `ignoreError` | `boolean` | Pokračovat i když zařízení neodpoví (např. když po změně adresy už neodpoví na staré) |
 | `ms` | `number` | Pro `"delay"`: délka pauzy v milisekundách |
+| `timeout` | `number` | Pro `"checkFree"`: jak dlouho čekat na odpověď (ms, výchozí 500) |
+
+**`checkFree`** ověří, že na adrese `slaveId` není jiné zařízení – ani v aplikaci, ani na sběrnici (odpověď daty i Modbus výjimkou = obsazeno, timeout = volno). Pokud je adresa obsazená, operace se zastaví ještě před prvním zápisem a v dialogu se objeví volba **Force**, se kterou lze operaci spustit znovu i přes konflikt. Když se `slaveId` rovná aktuální adrese zařízení, kontrola se přeskočí.
 
 > `"{slaveId}"` v hodnotách vždy znamená Slave ID **před** spuštěním operace.
 

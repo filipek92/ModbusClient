@@ -547,7 +547,9 @@ export const useModbusStore = defineStore('modbus', () => {
 
   // --- Device Operations (multi-step procedures defined in decoder JSON) ---
 
-  async function runDeviceOperation(deviceId: string, operationId: string, params: Record<string, number>): Promise<{ success: boolean; error?: string }> {
+  async function runDeviceOperation(
+    deviceId: string, operationId: string, params: Record<string, number>, force = false
+  ): Promise<{ success: boolean; error?: string; occupied?: boolean }> {
     const d = devices.value.find(x => x.id === deviceId);
     if (!d) return { success: false, error: 'Device not found' };
     const op = getDecoder(d.decoderId)?.operations?.find(o => o.id === operationId);
@@ -568,6 +570,25 @@ export const useModbusStore = defineStore('modbus', () => {
         const label = `step ${i + 1}/${op.steps.length}`;
         if (step.action === 'delay') {
           await new Promise(r => setTimeout(r, step.ms ?? 0));
+          continue;
+        }
+        if (step.action === 'checkFree') {
+          if (step.slaveId === undefined) throw new Error(`${label}: missing slaveId`);
+          const target = resolve(step.slaveId);
+          // The device itself already sits on its current address
+          if (target === originalSlaveId) continue;
+          const other = devices.value.find(x => x.id !== d.id && x.slaveId === target);
+          const found = other ? [] : await window.myAPI.scanDevices(target, target, step.timeout ?? 500);
+          if (!other && !found.includes(target)) {
+            addLog(`Operation [${d.name}] ${label}: address ${target} is free`);
+            continue;
+          }
+          const reason = other ? `already used by '${other.name}' in the app` : 'another device responds on the bus';
+          if (!force) {
+            addLog(`Operation [${d.name}] ${op.name} aborted: address ${target} is occupied (${reason})`);
+            return { success: false, occupied: true, error: `Address ${target} is occupied: ${reason}` };
+          }
+          addLog(`Operation [${d.name}] ${label}: address ${target} is occupied (${reason}), continuing (forced)`);
           continue;
         }
         if (step.address === undefined || step.value === undefined) throw new Error(`${label}: missing address or value`);

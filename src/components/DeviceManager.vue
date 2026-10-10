@@ -468,6 +468,14 @@
           <q-banner dense rounded :class="opResult.success ? 'bg-positive text-white' : 'bg-negative text-white'">
             {{ opResult.success ? 'Done' : opResult.error }}
           </q-banner>
+          <q-checkbox
+            v-if="opResult.occupied"
+            v-model="opForce"
+            label="Force – run anyway (address conflict on the bus)"
+            color="negative"
+            class="q-mt-sm"
+            :disable="opRunning"
+          />
         </q-card-section>
 
         <q-card-actions align="right">
@@ -904,7 +912,8 @@ export default defineComponent({
     const opParams = reactive<Record<string, number>>({});
     const opConfirmed = ref(false);
     const opRunning = ref(false);
-    const opResult = ref<{ success: boolean; error?: string } | null>(null);
+    const opForce = ref(false);
+    const opResult = ref<{ success: boolean; error?: string; occupied?: boolean } | null>(null);
 
     const opDeviceName = computed(() => store.devices.find(d => d.id === opDeviceId.value)?.name ?? '');
 
@@ -932,6 +941,7 @@ export default defineComponent({
         opParams[p.name] = p.default === '{slaveId}' ? (dev?.slaveId ?? 1) : Number(p.default ?? p.min ?? 0);
       });
       opConfirmed.value = false;
+      opForce.value = false;
       opResult.value = null;
       opDialog.value = true;
     }
@@ -941,10 +951,11 @@ export default defineComponent({
       opRunning.value = true;
       opResult.value = null;
       try {
-        opResult.value = await store.runDeviceOperation(opDeviceId.value, opCurrent.value.id, { ...opParams });
+        opResult.value = await store.runDeviceOperation(opDeviceId.value, opCurrent.value.id, { ...opParams }, opForce.value);
       } finally {
         opRunning.value = false;
         opConfirmed.value = false;
+        opForce.value = false;
       }
     }
 
@@ -964,6 +975,7 @@ export default defineComponent({
       opConfirmed,
       opRunning,
       opResult,
+      opForce,
       opDeviceName,
       opParamError,
       getOperations,

@@ -28,16 +28,18 @@ export interface OperationParam {
 }
 
 export interface OperationStep {
-  action: 'write' | 'delay';
+  action: 'write' | 'delay' | 'checkFree';
   // write
   type?: 'holding' | 'coil'; // default: holding
   address?: number;
   value?: OperationValue | OperationValue[];
   strategy?: 'single' | 'multiple'; // FC 06/05 vs FC 16/15
-  slaveId?: OperationValue; // default: current device Slave ID
+  slaveId?: OperationValue; // default: current device Slave ID (checkFree: the address to probe)
   ignoreError?: boolean; // continue even if the device does not answer
   // delay
   ms?: number;
+  // checkFree: fail if another device answers on slaveId (can be overridden by force)
+  timeout?: number; // probe timeout in ms, default 500
 }
 
 export interface DeviceOperation {

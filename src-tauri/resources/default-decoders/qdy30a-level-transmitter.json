@@ -128,6 +128,10 @@
       ],
       "steps": [
         {
+          "action": "checkFree",
+          "slaveId": "{newAddress}"
+        },
+        {
           "action": "write",
           "type": "holding",
           "address": 0,
