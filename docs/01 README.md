@@ -76,6 +76,19 @@ Nástroj pro prohledávání registrů. Prochází rozsah adres a hledá konkré
 
 Zobrazuje časovaný log všech Modbus operací – je užitečná pro ladění komunikace a diagnostiku chyb.
 
+### Profily (Profiles)
+
+Stav aplikace (nastavení připojení, zařízení, kolektory a parametry ručního dotazu včetně toho, které zařízení a kolektory jsou zapnuté) se ukládá automaticky a po restartu se obnoví.
+
+Tlačítko v horní liště otevírá menu profilů – pojmenovaných uložených konfigurací:
+- **Kliknutí na profil** jej načte (případné aktivní připojení se odpojí).
+- **Save** přepíše aktivní profil aktuálním stavem. Neuložené změny značí `*` za názvem profilu.
+- **Save as new profile…** uloží aktuální stav jako nový profil.
+- **Import / Export** přenese profil do / ze souboru JSON (např. pro jiný počítač).
+- **New empty workspace** odstraní zařízení a kolektory, nastavení připojení ponechá.
+
+Profily jsou uloženy v souboru `profiles.json` v konfiguračním adresáři aplikace (vedle uživatelských dekodérů, na Linuxu `~/.config/ModbusClient/`).
+
 ---
 
 ## Formát popisu zařízení

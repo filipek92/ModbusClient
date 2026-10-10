@@ -59,6 +59,12 @@ export interface IModbusAPI {
   saveDecoder: (decoder: IDeviceDecoder) => Promise<{ success: boolean; error?: string }>;
   deleteDecoder: (decoderId: string) => Promise<{ success: boolean; error?: string }>;
   downloadDecoderPack: (url?: string) => Promise<{ success: boolean; imported?: string[]; errors?: string[]; error?: string }>;
+
+  // Profiles (the content is defined by src/stores/profile-store.ts, the backend only stores it)
+  loadProfiles: () => Promise<{ success: boolean; data?: Record<string, unknown> | null; error?: string }>;
+  saveProfiles: (data: object) => Promise<{ success: boolean; error?: string }>;
+  exportProfile: (profile: object, fileName: string) => Promise<{ success: boolean; error?: string }>;
+  importProfile: () => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
   
   // Auto Update
   checkForUpdates: () => Promise<unknown>;

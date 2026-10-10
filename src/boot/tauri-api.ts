@@ -41,6 +41,12 @@ const api: IModbusAPI = {
   deleteDecoder: (decoderId) => invoke('delete_decoder', { args: { decoderId } }),
   downloadDecoderPack: (url) => invoke('download_decoder_pack', { args: { url } }),
 
+  // Profiles (workspace persistence)
+  loadProfiles: () => invoke('load_profiles'),
+  saveProfiles: (data) => invoke('save_profiles', { args: { data } }),
+  exportProfile: (profile, fileName) => invoke('export_profile', { args: { profile, fileName } }),
+  importProfile: () => invoke('import_profile'),
+
   // Auto Update
   checkForUpdates: () => invoke('check_for_updates'),
   downloadUpdate: () => invoke('download_update'),

@@ -1,6 +1,7 @@
 mod args;
 mod decoders;
 mod modbus;
+mod profiles;
 mod updater;
 
 use tauri::{AppHandle, Emitter};
@@ -36,6 +37,10 @@ pub fn run() {
             decoders::save_decoder,
             decoders::delete_decoder,
             decoders::download_decoder_pack,
+            profiles::load_profiles,
+            profiles::save_profiles,
+            profiles::export_profile,
+            profiles::import_profile,
             updater::check_for_updates,
             updater::download_update,
             updater::install_update,

@@ -6,6 +6,7 @@
           <img src="~assets/app-icon.svg" />
         </q-avatar>
         <q-toolbar-title> Modbus Client </q-toolbar-title>
+        <ProfileMenu />
         <div class="text-caption q-mr-md">v{{ version }}</div>
         <q-btn
           flat dense round
@@ -39,14 +40,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
+import { useProfileStore } from 'stores/profile-store';
 import packageInfo from '../../package.json';
 import Documentation from 'components/Documentation.vue';
+import ProfileMenu from 'components/ProfileMenu.vue';
 
 defineOptions({
   name: 'MainLayout',
 });
 
 const store = useModbusStore();
+const profiles = useProfileStore();
 const version = ref(packageInfo.version);
 const docsOpen = ref(false);
 
@@ -69,5 +73,7 @@ onMounted(() => {
   } catch (error) {
     console.error('Failed to initialize window event listeners:', error);
   }
+
+  void profiles.init();
 });
 </script>

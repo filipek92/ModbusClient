@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { availableDecoders, getDecoder, loadDecoders, importDecoder, exportDecoder, saveDecoder, deleteDecoder, downloadDecoderPack } from '../decoders';
 import type { DecoderField, OperationValue } from '../decoders/types';
+import type { ConnectionType, Workspace } from './workspace';
 
 export interface LogEntry {
   id: number;
@@ -48,7 +49,7 @@ export const useModbusStore = defineStore('modbus', () => {
   const devices = ref<ActiveDevice[]>([]);
   
   // Connection Settings (UI state)
-  const connectionType = ref<'tcp' | 'rtu' | 'rtu-over-tcp'>('tcp');
+  const connectionType = ref<ConnectionType>('tcp');
   
   // IP History
   const ipHistory = ref<string[]>(JSON.parse(localStorage.getItem('modbus_ip_history') || '[]'));
@@ -631,7 +632,92 @@ export const useModbusStore = defineStore('modbus', () => {
     }
   }
 
+  // --- Workspace (persisted by profile-store) ---
+
+  function getWorkspace(): Workspace {
+    return {
+      connection: {
+        type: connectionType.value,
+        tcpHost: tcpHost.value,
+        tcpPort: tcpPort.value,
+        rtuPath: rtuPath.value,
+        rtuBaudRate: rtuBaudRate.value,
+        rtuParity: rtuParity.value,
+        rtuDataBits: rtuDataBits.value,
+        rtuStopBits: rtuStopBits.value,
+      },
+      devices: devices.value.map(d => ({
+        id: d.id,
+        decoderId: d.decoderId,
+        slaveId: d.slaveId,
+        name: d.name,
+        enabled: d.enabled,
+        interval: d.interval,
+      })),
+      collectors: collectors.value.map(c => ({
+        id: c.id,
+        enabled: c.enabled,
+        type: c.type,
+        slaveId: c.slaveId,
+        startAddress: c.startAddress,
+        length: c.length,
+        interval: c.interval,
+        name: c.name,
+        jsConversion: c.jsConversion,
+      })),
+      manual: {
+        type: manualType.value,
+        slaveId: manualSlaveId.value,
+        start: manualStart.value,
+        length: manualLength.value,
+      },
+    };
+  }
+
+  /** Replaces devices, collectors and settings; polling is restarted for the enabled ones. */
+  function applyWorkspace(ws: Workspace) {
+    devices.value.forEach(d => stopDevice(d.id));
+    collectors.value.forEach(c => stopCollector(c.id));
+
+    const c = ws.connection;
+    connectionType.value = c.type;
+    tcpHost.value = c.tcpHost;
+    tcpPort.value = c.tcpPort;
+    rtuPath.value = c.rtuPath;
+    rtuBaudRate.value = c.rtuBaudRate;
+    rtuParity.value = c.rtuParity;
+    rtuDataBits.value = c.rtuDataBits;
+    rtuStopBits.value = c.rtuStopBits;
+
+    manualType.value = ws.manual.type;
+    manualSlaveId.value = ws.manual.slaveId;
+    manualStart.value = ws.manual.start;
+    manualLength.value = ws.manual.length;
+
+    devices.value = ws.devices.map(d => ({
+      ...d,
+      enabled: false,
+      timerId: null,
+      error: null,
+      lastUpdate: null,
+      values: {},
+      rawValues: {},
+    }));
+    collectors.value = ws.collectors.map(col => ({
+      ...col,
+      enabled: false,
+      lastValue: null,
+      error: null,
+      timerId: null,
+    }));
+
+    ws.devices.filter(d => d.enabled).forEach(d => startDevice(d.id));
+    ws.collectors.filter(col => col.enabled).forEach(col => startCollector(col.id));
+  }
+
   return {
+    getWorkspace,
+    applyWorkspace,
     ipHistory,
     connectionStatus,
     logs,

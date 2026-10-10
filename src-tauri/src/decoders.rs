@@ -18,7 +18,7 @@ const DECODER_PACK_URL: &str = "https://github.com/example/modbus-decoders/relea
 
 type Decoder = Map<String, Value>;
 
-fn ok_with(extra: Value) -> Value {
+pub(crate) fn ok_with(extra: Value) -> Value {
     let mut v = json!({ "success": true });
     if let (Value::Object(base), Value::Object(extra)) = (&mut v, extra) {
         base.extend(extra);
@@ -26,7 +26,7 @@ fn ok_with(extra: Value) -> Value {
     v
 }
 
-fn fail(msg: impl std::fmt::Display) -> Value {
+pub(crate) fn fail(msg: impl std::fmt::Display) -> Value {
     json!({ "success": false, "error": msg.to_string() })
 }
 
