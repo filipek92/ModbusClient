@@ -16,6 +16,7 @@ const api: IModbusAPI = {
   connectTCP: (host, port) => invoke('connect_tcp', { args: { host, port } }),
   connectRtuOverTcp: (host, port) => invoke('connect_rtu_tcp', { args: { host, port } }),
   disconnect: () => invoke('disconnect'),
+  listSerialPorts: () => invoke('list_serial_ports'),
 
   // Modbus Actions
   readModbus: (type, id, start, length) => invoke('read_modbus', { args: { type, id, start, length } }),

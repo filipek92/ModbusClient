@@ -22,6 +22,7 @@ pub fn run() {
             modbus::connect_tcp,
             modbus::connect_rtu_tcp,
             modbus::connect_rtu,
+            modbus::list_serial_ports,
             modbus::disconnect,
             modbus::read_modbus,
             modbus::write_modbus,

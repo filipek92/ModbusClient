@@ -252,6 +252,32 @@ fn open_serial(args: &RtuArgs) -> Result<SerialStream, String> {
     SerialStream::open(&builder).map_err(|e| e.to_string())
 }
 
+#[derive(Serialize)]
+pub struct SerialPortEntry {
+    path: String,
+    description: Option<String>,
+}
+
+#[tauri::command]
+pub fn list_serial_ports() -> Result<Vec<SerialPortEntry>, String> {
+    let ports = tokio_serial::available_ports().map_err(|e| e.to_string())?;
+    Ok(ports
+        .into_iter()
+        .map(|p| {
+            let description = match p.port_type {
+                tokio_serial::SerialPortType::UsbPort(usb) => {
+                    let parts: Vec<String> = [usb.manufacturer, usb.product].into_iter().flatten().collect();
+                    Some(if parts.is_empty() { format!("USB {:04x}:{:04x}", usb.vid, usb.pid) } else { parts.join(" ") })
+                }
+                tokio_serial::SerialPortType::BluetoothPort => Some("Bluetooth".into()),
+                tokio_serial::SerialPortType::PciPort => Some("PCI".into()),
+                tokio_serial::SerialPortType::Unknown => None,
+            };
+            SerialPortEntry { path: p.port_name, description }
+        })
+        .collect())
+}
+
 #[tauri::command]
 pub async fn connect_rtu(app: AppHandle, state: State<'_, ModbusState>, args: RtuArgs) -> Result<Value, ()> {
     let mut conn = state.0.lock().await;

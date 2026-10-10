@@ -6,6 +6,11 @@ export interface IConnectRTU {
   stopBits: number;
 }
 
+export interface ISerialPort {
+  path: string;
+  description: string | null;
+}
+
 export interface IConnectTCP {
   host: string;
   port: number;
@@ -38,6 +43,7 @@ export interface IModbusAPI {
   connectTCP: (host: string, port: number) => Promise<{ success: boolean; error?: string }>;
   connectRtuOverTcp: (host: string, port: number) => Promise<{ success: boolean; error?: string }>;
   disconnect: () => Promise<{ success: boolean; error?: string }>;
+  listSerialPorts: () => Promise<ISerialPort[]>;
   readModbus: (type: 'holding' | 'input' | 'coil' | 'discrete', id: number, start: number, length: number) => Promise<{ success: boolean; data?: number[] | boolean[], error?: string }>;
   writeModbus: (type: 'holding' | 'coil', id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[], strategy?: 'single' | 'multiple') => Promise<{ success: boolean; error?: string }>;
   scanDevices: (startId: number, endId: number, timeout: number) => Promise<number[]>;
