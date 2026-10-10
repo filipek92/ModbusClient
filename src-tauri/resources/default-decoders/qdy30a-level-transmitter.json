@@ -109,5 +109,57 @@
       "name": "Parity",
       "dataType": "uint16"
     }
+  ],
+  "operations": [
+    {
+      "id": "change-slave-address",
+      "name": "Change Slave Address",
+      "description": "Writes the new address to register 0 (the device may not answer on the old address any more) and then saves the settings (register 15 = 0) using the new address.",
+      "confirm": "The device will respond only on the new address",
+      "params": [
+        {
+          "name": "newAddress",
+          "label": "New Slave Address",
+          "type": "number",
+          "min": 1,
+          "max": 247,
+          "default": "{slaveId}"
+        }
+      ],
+      "steps": [
+        {
+          "action": "write",
+          "type": "holding",
+          "address": 0,
+          "value": "{newAddress}",
+          "ignoreError": true
+        },
+        {
+          "action": "delay",
+          "ms": 300
+        },
+        {
+          "action": "write",
+          "type": "holding",
+          "address": 15,
+          "value": 0,
+          "slaveId": "{newAddress}"
+        }
+      ],
+      "setSlaveId": "{newAddress}"
+    },
+    {
+      "id": "save-settings",
+      "name": "Save Settings",
+      "description": "Stores current parameters to non-volatile memory (register 15 = 0). Use after changing unit, decimal point, range or zero offset.",
+      "steps": [
+        {
+          "action": "write",
+          "type": "holding",
+          "address": 15,
+          "value": 0
+        }
+      ]
+    }
   ]
 }

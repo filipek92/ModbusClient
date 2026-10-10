@@ -35,6 +35,7 @@ export interface IDeviceDecoder {
   defaultSlaveId: number;
   maxReadCount?: number;
   fields: IDecoderField[];
+  operations?: unknown[];
   isDefault?: boolean;
 }
 

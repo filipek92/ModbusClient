@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { availableDecoders, getDecoder, loadDecoders, importDecoder, exportDecoder, saveDecoder, deleteDecoder, downloadDecoderPack } from '../decoders';
-import type { DecoderField } from '../decoders/types';
+import type { DecoderField, OperationValue } from '../decoders/types';
 
 export interface LogEntry {
   id: number;
@@ -527,6 +527,61 @@ export const useModbusStore = defineStore('modbus', () => {
     }
   }
 
+  // --- Device Operations (multi-step procedures defined in decoder JSON) ---
+
+  async function runDeviceOperation(deviceId: string, operationId: string, params: Record<string, number>): Promise<{ success: boolean; error?: string }> {
+    const d = devices.value.find(x => x.id === deviceId);
+    if (!d) return { success: false, error: 'Device not found' };
+    const op = getDecoder(d.decoderId)?.operations?.find(o => o.id === operationId);
+    if (!op) return { success: false, error: 'Operation not found' };
+
+    const originalSlaveId = d.slaveId;
+    // Resolve a literal or "{param}" reference; "{slaveId}" is the Slave ID before the operation started
+    const resolve = (v: OperationValue): number => {
+      const ref = typeof v === 'string' ? /^\{(\w+)\}$/.exec(v.trim()) : null;
+      const n = ref ? (ref[1] === 'slaveId' ? originalSlaveId : params[ref[1]]) : Number(v);
+      if (typeof n !== 'number' || isNaN(n)) throw new Error(`Invalid value '${String(v)}'`);
+      return n;
+    };
+
+    addLog(`Operation [${d.name}] ${op.name} started (${JSON.stringify(params)})`);
+    try {
+      for (const [i, step] of op.steps.entries()) {
+        const label = `step ${i + 1}/${op.steps.length}`;
+        if (step.action === 'delay') {
+          await new Promise(r => setTimeout(r, step.ms ?? 0));
+          continue;
+        }
+        if (step.address === undefined || step.value === undefined) throw new Error(`${label}: missing address or value`);
+        const type = step.type ?? 'holding';
+        const slaveId = step.slaveId !== undefined ? resolve(step.slaveId) : originalSlaveId;
+        const values = (Array.isArray(step.value) ? step.value : [step.value]).map(resolve);
+        const res = await window.myAPI.writeModbus(type, slaveId, step.address, values, step.strategy);
+        if (res.success) {
+          addLog(`Operation [${d.name}] ${label}: write ${type} ID:${slaveId} Addr:${step.address} Val:${values.join(',')} OK`);
+        } else if (step.ignoreError) {
+          addLog(`Operation [${d.name}] ${label}: write ID:${slaveId} Addr:${step.address} failed (ignored): ${res.error}`);
+        } else {
+          throw new Error(`${label} (Addr ${step.address}): ${res.error}`);
+        }
+      }
+
+      if (op.setSlaveId !== undefined) {
+        const newId = resolve(op.setSlaveId);
+        const decoderName = getDecoder(d.decoderId)?.name ?? d.name;
+        d.slaveId = newId;
+        d.name = `${decoderName} (ID: ${newId})`;
+        addLog(`Operation [${d.name}] Slave ID changed ${originalSlaveId} → ${newId}`);
+      }
+      addLog(`Operation [${d.name}] ${op.name} finished`);
+      return { success: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      addLog(`Operation [${d.name}] ${op.name} failed: ${msg}`);
+      return { success: false, error: msg };
+    }
+  }
+
   function stopDevice(id: string) {
     const d = devices.value.find(x => x.id === id);
     if (!d) return;
@@ -576,6 +631,7 @@ export const useModbusStore = defineStore('modbus', () => {
     removeDevice,
     toggleDevice,
     writeDeviceValue,
+    runDeviceOperation,
     availableDecoders, // Expose reactive list
     loadDecoders,
     importDecoder,

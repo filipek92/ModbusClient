@@ -241,6 +241,19 @@
             >
               <q-tooltip>Start/Stop Polling</q-tooltip>
             </q-btn>
+            <q-btn v-if="getOperations(dev.decoderId).length" icon="build" color="deep-orange" flat round>
+              <q-tooltip>Operations</q-tooltip>
+              <q-menu auto-close>
+                <q-list dense style="min-width: 220px">
+                  <q-item v-for="op in getOperations(dev.decoderId)" :key="op.id" clickable @click="openOperation(dev.id, op)">
+                    <q-item-section>
+                      <q-item-label>{{ op.name }}</q-item-label>
+                      <q-item-label v-if="op.description" caption lines="2">{{ op.description }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
             <q-btn icon="info" color="blue" flat round @click="showInfo(dev.decoderId)">
               <q-tooltip>Register Info</q-tooltip>
             </q-btn>
@@ -381,6 +394,24 @@
               </q-tr>
             </template>
           </q-table>
+
+          <q-expansion-item
+            class="q-mt-md"
+            dense
+            icon="build"
+            :label="`Operations (JSON)${editDecoder.operationsJson.trim() ? '' : ' – none'}`"
+            caption="Multi-step write procedures, see docs: Device Decoder Format"
+          >
+            <q-input
+              v-model="editDecoder.operationsJson"
+              type="textarea"
+              outlined dense autogrow
+              input-style="font-family: monospace; font-size: 12px"
+              placeholder='[ { "id": "...", "name": "...", "steps": [ ... ] } ]'
+              :error="!!operationsJsonError"
+              :error-message="operationsJsonError"
+            />
+          </q-expansion-item>
         </q-card-section>
 
         <q-separator />
@@ -392,7 +423,64 @@
             flat label="Delete Decoder" color="negative" icon="delete_forever"
             @click="confirmDeleteDecoder"
           />
-          <q-btn label="Save" color="primary" icon="save" @click="handleSaveDecoder" :disable="!editDecoder.id || !editDecoder.name" />
+          <q-btn label="Save" color="primary" icon="save" @click="handleSaveDecoder" :disable="!editDecoder.id || !editDecoder.name || !!operationsJsonError" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Operation Dialog -->
+    <q-dialog v-model="opDialog" @before-show="blurActive" :persistent="opRunning">
+      <q-card v-if="opCurrent" style="min-width: 400px; max-width: 90vw;">
+        <q-card-section>
+          <div class="text-h6">{{ opCurrent.name }}</div>
+          <div class="text-caption text-grey">{{ opDeviceName }}</div>
+          <div v-if="opCurrent.description" class="q-mt-sm">{{ opCurrent.description }}</div>
+        </q-card-section>
+
+        <q-card-section v-if="opCurrent.params?.length" class="q-gutter-sm">
+          <template v-for="p in opCurrent.params" :key="p.name">
+            <q-select
+              v-if="p.type === 'select' && p.options"
+              v-model="opParams[p.name]"
+              :label="p.label || p.name"
+              :options="Object.entries(p.options).map(([k, v]) => ({ label: `${k} (${v})`, value: Number(k) }))"
+              dense outlined emit-value map-options
+              :disable="opRunning"
+            />
+            <q-input
+              v-else
+              v-model.number="opParams[p.name]"
+              :label="p.label || p.name"
+              type="number"
+              dense outlined
+              :hint="p.min !== undefined || p.max !== undefined ? `${p.min ?? ''} – ${p.max ?? ''}` : undefined"
+              :disable="opRunning"
+            />
+          </template>
+        </q-card-section>
+
+        <q-card-section v-if="opCurrent.confirm" class="q-pt-none">
+          <q-checkbox v-model="opConfirmed" :label="opCurrent.confirm" :disable="opRunning" />
+        </q-card-section>
+
+        <q-card-section v-if="opResult" class="q-pt-none">
+          <q-banner dense rounded :class="opResult.success ? 'bg-positive text-white' : 'bg-negative text-white'">
+            {{ opResult.success ? 'Done' : opResult.error }}
+          </q-banner>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Close" v-close-popup :disable="opRunning" />
+          <q-btn
+            label="Run"
+            icon="play_arrow"
+            color="deep-orange"
+            :loading="opRunning"
+            :disable="!!opParamError || (!!opCurrent.confirm && !opConfirmed) || store.connectionStatus !== 'connected'"
+            @click="executeOperation"
+          >
+            <q-tooltip v-if="opParamError">{{ opParamError }}</q-tooltip>
+          </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -442,7 +530,7 @@
 import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
 import { getDecoder } from 'src/decoders';
-import type { DeviceDecoder, DecoderField } from 'src/decoders/types';
+import type { DeviceDecoder, DecoderField, DeviceOperation } from 'src/decoders/types';
 
 export default defineComponent({
   name: 'DeviceManager',
@@ -552,12 +640,23 @@ export default defineComponent({
       _mapString: string;
     }
 
-    const editDecoder = reactive<{ id: string; name: string; defaultSlaveId: number; maxReadCount: number | null; fields: EditField[] }>({
+    const editDecoder = reactive<{ id: string; name: string; defaultSlaveId: number; maxReadCount: number | null; fields: EditField[]; operationsJson: string }>({
       id: '',
       name: '',
       defaultSlaveId: 1,
       maxReadCount: null,
-      fields: []
+      fields: [],
+      operationsJson: ''
+    });
+
+    const operationsJsonError = computed(() => {
+      const s = editDecoder.operationsJson.trim();
+      if (!s) return '';
+      try {
+        return Array.isArray(JSON.parse(s)) ? '' : 'Must be a JSON array';
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e);
+      }
     });
 
     const registerTypeOptions = [
@@ -634,6 +733,7 @@ export default defineComponent({
       editDecoder.defaultSlaveId = d.defaultSlaveId;
       editDecoder.maxReadCount = d.maxReadCount ?? null;
       editDecoder.fields = d.fields.map((f, i) => fieldToEdit(f, i));
+      editDecoder.operationsJson = d.operations?.length ? JSON.stringify(d.operations, null, 2) : '';
       editDialog.value = true;
     }
 
@@ -645,6 +745,7 @@ export default defineComponent({
       editDecoder.defaultSlaveId = 1;
       editDecoder.maxReadCount = null;
       editDecoder.fields = [];
+      editDecoder.operationsJson = '';
       editDialog.value = true;
     }
 
@@ -701,6 +802,10 @@ export default defineComponent({
         })
       };
       if (editDecoder.maxReadCount) decoder.maxReadCount = editDecoder.maxReadCount;
+      if (editDecoder.operationsJson.trim()) {
+        const ops = JSON.parse(editDecoder.operationsJson) as DeviceOperation[];
+        if (ops.length) decoder.operations = ops;
+      }
       const result = await store.saveDecoder(decoder);
       if (result.success) {
         editDialog.value = false;
@@ -787,6 +892,57 @@ export default defineComponent({
        store.writeDeviceValue(deviceId, fieldName, value);
     }
 
+    // Operations Dialog Logic
+    const opDialog = ref(false);
+    const opDeviceId = ref('');
+    const opCurrent = ref<DeviceOperation | null>(null);
+    const opParams = reactive<Record<string, number>>({});
+    const opConfirmed = ref(false);
+    const opRunning = ref(false);
+    const opResult = ref<{ success: boolean; error?: string } | null>(null);
+
+    const opDeviceName = computed(() => store.devices.find(d => d.id === opDeviceId.value)?.name ?? '');
+
+    const opParamError = computed(() => {
+      for (const p of opCurrent.value?.params ?? []) {
+        const v = opParams[p.name];
+        const label = p.label || p.name;
+        if (typeof v !== 'number' || isNaN(v)) return `${label}: value required`;
+        if (p.min !== undefined && v < p.min) return `${label}: min ${p.min}`;
+        if (p.max !== undefined && v > p.max) return `${label}: max ${p.max}`;
+      }
+      return '';
+    });
+
+    function getOperations(decoderId: string): DeviceOperation[] {
+      return getDecoder(decoderId)?.operations ?? [];
+    }
+
+    function openOperation(deviceId: string, op: DeviceOperation) {
+      const dev = store.devices.find(d => d.id === deviceId);
+      opDeviceId.value = deviceId;
+      opCurrent.value = op;
+      Object.keys(opParams).forEach(k => delete opParams[k]);
+      (op.params ?? []).forEach(p => {
+        opParams[p.name] = p.default === '{slaveId}' ? (dev?.slaveId ?? 1) : Number(p.default ?? p.min ?? 0);
+      });
+      opConfirmed.value = false;
+      opResult.value = null;
+      opDialog.value = true;
+    }
+
+    async function executeOperation() {
+      if (!opCurrent.value) return;
+      opRunning.value = true;
+      opResult.value = null;
+      try {
+        opResult.value = await store.runDeviceOperation(opDeviceId.value, opCurrent.value.id, { ...opParams });
+      } finally {
+        opRunning.value = false;
+        opConfirmed.value = false;
+      }
+    }
+
     function blurActive() {
       (document.activeElement as HTMLElement | null)?.blur();
     }
@@ -796,6 +952,18 @@ export default defineComponent({
       getFields, 
       writeValue, 
       Object,
+      // Operations
+      opDialog,
+      opCurrent,
+      opParams,
+      opConfirmed,
+      opRunning,
+      opResult,
+      opDeviceName,
+      opParamError,
+      getOperations,
+      openOperation,
+      executeOperation,
       // Add Device Dialog
       addDeviceDialog,
       addSelectedDecoder,
@@ -834,6 +1002,7 @@ export default defineComponent({
       parseMapString,
       handleSaveDecoder,
       confirmDeleteDecoder,
+      operationsJsonError,
       // Info Dialog
       infoDialog,
       currentInfoDecoder,

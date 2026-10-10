@@ -29,6 +29,7 @@ Dekodér je prostý JSON soubor, který lze:
 | `defaultSlaveId` | `number` | ✅ | Výchozí Slave ID na Modbus sběrnici (1–247). Lze přepsat při přidávání zařízení. |
 | `maxReadCount` | `number` | – | Maximální počet registrů v jednom čtecím požadavku. Pro zařízení, která neumí číst velké bloky (např. QDY30A max. 20). Výchozí: `100` |
 | `fields` | `array` | ✅ | Seznam registrů / polí ke čtení (viz níže) |
+| `operations` | `array` | – | Vícekrokové zápisové operace, např. změna adresy + uložení (viz [Operace](#operace-operations)) |
 
 ---
 
@@ -197,6 +198,70 @@ Hodnota `2` se zobrazí jako `"Normal"`.
 ```
 
 IEEE 754 float uložený ve 2 registrech. `wordOrder: "big-endian"` je výchozí (High word na nižší adrese).
+
+---
+
+## Operace (operations)
+
+Některá nastavení nejdou změnit jedním zápisem do registru – např. u QDY30A se nová adresa zapíše do registru `0` a pak je nutné nastavení potvrdit/uložit zápisem do dalšího registru. Takové postupy se popisují v poli `operations`. U přidaného zařízení se pak objeví tlačítko **Operations** (ikona klíče), které otevře dialog s parametry a spustí kroky postupně.
+
+```json
+"operations": [
+  {
+    "id": "change-slave-address",
+    "name": "Change Slave Address",
+    "description": "Zapíše novou adresu a uloží nastavení.",
+    "confirm": "Zařízení bude odpovídat jen na nové adrese",
+    "params": [
+      { "name": "newAddress", "label": "New Slave Address", "min": 1, "max": 247, "default": "{slaveId}" }
+    ],
+    "steps": [
+      { "action": "write", "address": 0, "value": "{newAddress}" },
+      { "action": "delay", "ms": 300 },
+      { "action": "write", "address": 15, "value": 0, "slaveId": "{newAddress}" }
+    ],
+    "setSlaveId": "{newAddress}"
+  }
+]
+```
+
+### Vlastnosti operace
+
+| Vlastnost | Typ | Povinné | Popis |
+|---|---|---|---|
+| `id` | `string` | ✅ | Unikátní identifikátor operace v rámci dekodéru |
+| `name` | `string` | ✅ | Název zobrazený v menu |
+| `description` | `string` | – | Popis zobrazený v menu a v dialogu |
+| `confirm` | `string` | – | Text zaškrtávacího potvrzení, bez kterého nejde operaci spustit |
+| `params` | `array` | – | Parametry, které uživatel vyplní před spuštěním |
+| `steps` | `array` | ✅ | Kroky prováděné postupně; při chybě se zbytek přeskočí |
+| `setSlaveId` | `number \| string` | – | Po úspěchu změní Slave ID zařízení v aplikaci (typicky `"{newAddress}"`) |
+
+### Parametry (`params`)
+
+| Vlastnost | Typ | Popis |
+|---|---|---|
+| `name` | `string` | Název, na který se kroky odkazují jako `"{name}"` |
+| `label` | `string` | Popisek v dialogu |
+| `type` | `string` | `"number"` (výchozí) nebo `"select"` |
+| `min`, `max` | `number` | Povolený rozsah |
+| `default` | `number \| string` | Výchozí hodnota; `"{slaveId}"` = aktuální Slave ID zařízení |
+| `options` | `object` | Pro `"select"`: mapa hodnota → popisek (stejně jako `map` u polí) |
+
+### Kroky (`steps`)
+
+| Vlastnost | Typ | Popis |
+|---|---|---|
+| `action` | `string` | `"write"` nebo `"delay"` |
+| `type` | `string` | `"holding"` (výchozí) nebo `"coil"` |
+| `address` | `number` | Adresa registru (0-based) |
+| `value` | `number \| string \| array` | Hodnota k zápisu – číslo nebo odkaz `"{param}"`; pole = zápis více registrů |
+| `strategy` | `string` | `"single"` (FC 06/05) nebo `"multiple"` (FC 16/15); výchozí podle počtu hodnot |
+| `slaveId` | `number \| string` | Slave ID pro tento krok; výchozí je aktuální ID zařízení. Např. `"{newAddress}"` pro potvrzení na nové adrese |
+| `ignoreError` | `boolean` | Pokračovat i když zařízení neodpoví (např. když po změně adresy už neodpoví na staré) |
+| `ms` | `number` | Pro `"delay"`: délka pauzy v milisekundách |
+
+> `"{slaveId}"` v hodnotách vždy znamená Slave ID **před** spuštěním operace.
 
 ---
 
