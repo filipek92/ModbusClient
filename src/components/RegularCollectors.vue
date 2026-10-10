@@ -33,8 +33,12 @@
           </q-item-section>
 
           <q-item-section side>
+            <TrendButton :series-key="collectorKey(col.id)" />
+          </q-item-section>
+
+          <q-item-section side>
              <div v-if="col.error" class="text-negative text-bold">Error</div>
-             <pre v-else class="text-primary text-bold text-h6 q-ma-none" style="font-family: monospace; white-space: pre-wrap; text-align: right;">{{ col.lastValue }}</pre>
+             <pre v-else class="text-primary text-bold text-h6 q-ma-none" style="font-family: monospace; white-space: pre-wrap; text-align: right;">{{ withUnit(col) }}</pre>
           </q-item-section>
         </template>
 
@@ -52,8 +56,11 @@
                     map-options 
                  />
                </div>
-               <div class="col-12 col-sm-8">
+               <div class="col-8 col-sm-5">
                  <q-input v-model="col.name" dense outlined label="Name" />
+               </div>
+               <div class="col-4 col-sm-3">
+                 <q-input v-model="col.unit" dense outlined label="Unit" />
                </div>
 
                <div class="col-6 col-sm-3">
@@ -97,7 +104,7 @@
                <div class="text-right" style="max-width: 50%;">
                   <div class="text-caption text-grey-7">Result:</div>
                   <div v-if="col.error" class="text-negative text-bold">{{ col.error }}</div>
-                  <pre v-else class="q-ma-none text-primary" style="white-space: pre-wrap; font-family: monospace;">{{ col.lastValue }}</pre>
+                  <pre v-else class="q-ma-none text-primary" style="white-space: pre-wrap; font-family: monospace;">{{ withUnit(col) }}</pre>
                </div>
             </div>
 
@@ -114,10 +121,13 @@
 
 <script lang="ts">
 import { defineComponent, computed } from 'vue';
-import { useModbusStore } from 'stores/modbus-store';
+import { useModbusStore, type Collector } from 'stores/modbus-store';
+import { collectorKey } from 'stores/trend-store';
+import TrendButton from 'components/TrendButton.vue';
 
 export default defineComponent({
   name: 'RegularCollectors',
+  components: { TrendButton },
   setup() {
     const store = useModbusStore();
     const isConnected = computed(() => store.connectionStatus === 'connected');
@@ -129,7 +139,13 @@ export default defineComponent({
       { label: 'Discrete (FC02)', value: 'discrete' }
     ];
 
-    return { store, isConnected, typeOptions };
+    /** Last value with the unit appended (not to a missing value) */
+    function withUnit(col: Collector) {
+      if (col.lastValue === null || col.lastValue === undefined) return '';
+      return col.unit ? `${String(col.lastValue)} ${col.unit}` : col.lastValue;
+    }
+
+    return { store, isConnected, typeOptions, collectorKey, withUnit };
   }
 });
 </script>

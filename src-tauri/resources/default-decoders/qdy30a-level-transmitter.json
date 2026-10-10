@@ -1,0 +1,165 @@
+{
+  "id": "qdy30a-level-transmitter",
+  "name": "QDY30A Level Transmitter (RS485)",
+  "defaultSlaveId": 1,
+  "maxReadCount": 20,
+  "fields": [
+    {
+      "address": 22,
+      "type": "holding",
+      "name": "Measured Value",
+      "dataType": "float32",
+      "readOnly": true,
+      "precision": 3,
+      "wordOrder": "big-endian"
+    },
+    {
+      "address": 4,
+      "type": "holding",
+      "name": "Measured Value (raw)",
+      "dataType": "int16",
+      "readOnly": true
+    },
+    {
+      "address": 2,
+      "type": "holding",
+      "name": "Unit",
+      "dataType": "uint16",
+      "map": {
+        "0": "MPa",
+        "1": "kPa",
+        "2": "Pa",
+        "3": "bar",
+        "4": "mbar",
+        "5": "kg/cm²",
+        "6": "psi",
+        "7": "mH2O",
+        "8": "mmH2O",
+        "9": "inH2O",
+        "10": "H2O",
+        "11": "mHg",
+        "12": "mmHg",
+        "13": "inHg",
+        "14": "atm",
+        "15": "Torr",
+        "16": "m",
+        "17": "cm",
+        "18": "mm",
+        "19": "kg",
+        "20": "°C",
+        "21": "pH",
+        "22": "°F",
+        "23": "None"
+      }
+    },
+    {
+      "address": 3,
+      "type": "holding",
+      "name": "Decimal Point",
+      "dataType": "uint16",
+      "map": {
+        "0": "####",
+        "1": "###.#",
+        "2": "##.##",
+        "3": "#.###",
+        "4": ".####"
+      }
+    },
+    {
+      "address": 5,
+      "type": "holding",
+      "name": "Range Zero Point (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 6,
+      "type": "holding",
+      "name": "Range Full Point (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 12,
+      "type": "holding",
+      "name": "Zero Offset (raw)",
+      "dataType": "int16"
+    },
+    {
+      "address": 1,
+      "type": "holding",
+      "name": "Baud Rate",
+      "dataType": "uint16",
+      "map": {
+        "0": "1200",
+        "1": "2400",
+        "2": "4800",
+        "3": "9600",
+        "4": "19200",
+        "5": "38400",
+        "6": "57600",
+        "7": "115200"
+      }
+    },
+    {
+      "address": 37,
+      "type": "holding",
+      "name": "Parity",
+      "dataType": "uint16"
+    }
+  ],
+  "operations": [
+    {
+      "id": "change-slave-address",
+      "name": "Change Slave Address",
+      "description": "Writes the new address to register 0 (the device may not answer on the old address any more) and then saves the settings (register 15 = 0) using the new address.",
+      "confirm": "The device will respond only on the new address",
+      "params": [
+        {
+          "name": "newAddress",
+          "label": "New Slave Address",
+          "type": "number",
+          "min": 1,
+          "max": 247,
+          "default": "{slaveId}"
+        }
+      ],
+      "steps": [
+        {
+          "action": "checkFree",
+          "slaveId": "{newAddress}"
+        },
+        {
+          "action": "write",
+          "type": "holding",
+          "address": 0,
+          "value": "{newAddress}",
+          "ignoreError": true
+        },
+        {
+          "action": "delay",
+          "ms": 300
+        },
+        {
+          "action": "write",
+          "type": "holding",
+          "address": 15,
+          "value": 0,
+          "slaveId": "{newAddress}"
+        }
+      ],
+      "setSlaveId": "{newAddress}"
+    },
+    {
+      "id": "save-settings",
+      "name": "Save Settings",
+      "description": "Stores current parameters to non-volatile memory (register 15 = 0). Use after changing unit, decimal point, range or zero offset.",
+      "steps": [
+        {
+          "action": "write",
+          "type": "holding",
+          "address": 15,
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

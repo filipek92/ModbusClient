@@ -166,6 +166,7 @@
         <q-card-section>
           <div class="text-h6">Scan Modbus Bus</div>
           <div class="text-caption">Scans ID range for active devices</div>
+          <div class="text-caption text-grey">Over TCP the timeout must exceed the gateway's own response timeout, otherwise its request queue fills up and nothing is found.</div>
         </q-card-section>
 
         <q-card-section>
@@ -196,10 +197,10 @@
 
           <q-list separator v-if="scanResults.length > 0">
              <q-item-label header>Found Devices</q-item-label>
-             <q-item 
-                v-for="id in scanResults" 
-                :key="id" 
-                clickable 
+             <q-item
+                v-for="id in scanResults"
+                :key="id"
+                clickable
                 v-ripple
                 @click="useFoundID(id)"
              >
@@ -208,7 +209,22 @@
                </q-item-section>
                <q-item-section>
                  <q-item-label>Device ID: {{ id }}</q-item-label>
-                 <q-item-label caption>Click to select this ID</q-item-label>
+                 <q-item-label caption v-if="devicesWithSlaveId(id).length">Added: {{ devicesWithSlaveId(id).join(', ') }}</q-item-label>
+                 <q-item-label caption>Click to use in Manual Operation</q-item-label>
+               </q-item-section>
+               <q-item-section side>
+                 <div class="row items-center no-wrap q-gutter-xs" @click.stop>
+                   <q-select
+                     v-model="scanFoundDecoder[id]"
+                     :options="decoderOptions"
+                     label="Decoder"
+                     dense outlined emit-value map-options
+                     style="min-width: 180px"
+                   />
+                   <q-btn flat round dense icon="add_circle" color="positive" :disable="!scanFoundDecoder[id]" @click="addFoundDevice(id)">
+                     <q-tooltip>Add device</q-tooltip>
+                   </q-btn>
+                 </div>
                </q-item-section>
              </q-item>
           </q-list>
@@ -218,7 +234,8 @@
 
         <q-card-actions align="right">
           <q-btn flat label="Close" color="primary" v-close-popup :disable="isScanning" />
-          <q-btn label="Start Scan" color="secondary" @click="performScan" :loading="isScanning" />
+          <q-btn v-if="isScanning" label="Stop" color="negative" icon="stop" @click="stopScan" :loading="scanStopping" />
+          <q-btn v-else label="Start Scan" color="secondary" @click="performScan" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -241,6 +258,19 @@
             >
               <q-tooltip>Start/Stop Polling</q-tooltip>
             </q-btn>
+            <q-btn v-if="getOperations(dev.decoderId).length" icon="build" color="deep-orange" flat round>
+              <q-tooltip>Operations</q-tooltip>
+              <q-menu auto-close>
+                <q-list dense style="min-width: 220px">
+                  <q-item v-for="op in getOperations(dev.decoderId)" :key="op.id" clickable @click="openOperation(dev.id, op)">
+                    <q-item-section>
+                      <q-item-label>{{ op.name }}</q-item-label>
+                      <q-item-label v-if="op.description" caption lines="2">{{ op.description }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
             <q-btn icon="info" color="blue" flat round @click="showInfo(dev.decoderId)">
               <q-tooltip>Register Info</q-tooltip>
             </q-btn>
@@ -261,10 +291,14 @@
                 class="col-12 col-sm-6 col-md-4"
              >
                <q-card flat bordered class="q-pa-sm">
-                 <div class="text-caption text-grey q-mb-xs">{{ field.name }} ({{ field.address }})</div>
+                 <div class="row items-center no-wrap q-mb-xs">
+                   <div class="text-caption text-grey ellipsis">{{ field.name }} ({{ field.address }})</div>
+                   <q-space />
+                   <TrendButton :series-key="deviceFieldKey(dev.id, field.name)" size="xs" />
+                 </div>
                  
                  <!-- Editable Holding Register -->
-                 <template v-if="field.type === 'holding' || field.type === 'coil'">
+                 <template v-if="(field.type === 'holding' || field.type === 'coil') && !field.readOnly">
                     <!-- Enum Select -->
                     <template v-if="field.map">
                       <q-select
@@ -288,7 +322,7 @@
                     </template>
                  </template>
 
-                 <!-- Read-Only (Input/Discrete) -->
+                 <!-- Read-Only (Input/Discrete or readOnly) -->
                  <template v-else>
                    <div class="text-h6 text-primary">
                       {{ dev.values[field.name] !== undefined ? dev.values[field.name] : '-' }}
@@ -317,11 +351,14 @@
             <div class="col-12 col-sm-3">
               <q-input v-model="editDecoder.id" label="ID (unique slug)" dense outlined :rules="[(v: string) => !!v || 'Required']" />
             </div>
-            <div class="col-12 col-sm-5">
+            <div class="col-12 col-sm-3">
               <q-input v-model="editDecoder.name" label="Device Name" dense outlined :rules="[(v: string) => !!v || 'Required']" />
             </div>
             <div class="col-12 col-sm-2">
               <q-input v-model.number="editDecoder.defaultSlaveId" label="Default Slave ID" type="number" dense outlined />
+            </div>
+            <div class="col-12 col-sm-2">
+              <q-input v-model.number="editDecoder.maxReadCount" label="Max Registers / Read" type="number" dense outlined clearable hint="Empty = 100" />
             </div>
             <div class="col-12 col-sm-2 flex items-center">
               <q-btn label="Add Field" icon="add" color="primary" dense @click="addEditField" class="full-width" />
@@ -348,6 +385,9 @@
                 </q-td>
                 <q-td key="type" :props="props" style="width: 110px">
                   <q-select v-model="props.row.type" :options="registerTypeOptions" dense borderless emit-value map-options />
+                </q-td>
+                <q-td key="readOnly" :props="props" style="width: 50px">
+                  <q-checkbox v-model="props.row.readOnly" dense :disable="props.row.type === 'input' || props.row.type === 'discrete'" />
                 </q-td>
                 <q-td key="dataType" :props="props" style="width: 110px">
                   <q-select v-model="props.row.dataType" :options="dataTypeOptions" dense borderless emit-value map-options />
@@ -378,6 +418,24 @@
               </q-tr>
             </template>
           </q-table>
+
+          <q-expansion-item
+            class="q-mt-md"
+            dense
+            icon="build"
+            :label="`Operations (JSON)${editDecoder.operationsJson.trim() ? '' : ' – none'}`"
+            caption="Multi-step write procedures, see docs: Device Decoder Format"
+          >
+            <q-input
+              v-model="editDecoder.operationsJson"
+              type="textarea"
+              outlined dense autogrow
+              input-style="font-family: monospace; font-size: 12px"
+              placeholder='[ { "id": "...", "name": "...", "steps": [ ... ] } ]'
+              :error="!!operationsJsonError"
+              :error-message="operationsJsonError"
+            />
+          </q-expansion-item>
         </q-card-section>
 
         <q-separator />
@@ -389,7 +447,72 @@
             flat label="Delete Decoder" color="negative" icon="delete_forever"
             @click="confirmDeleteDecoder"
           />
-          <q-btn label="Save" color="primary" icon="save" @click="handleSaveDecoder" :disable="!editDecoder.id || !editDecoder.name" />
+          <q-btn label="Save" color="primary" icon="save" @click="handleSaveDecoder" :disable="!editDecoder.id || !editDecoder.name || !!operationsJsonError" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Operation Dialog -->
+    <q-dialog v-model="opDialog" @before-show="blurActive" :persistent="opRunning">
+      <q-card v-if="opCurrent" style="min-width: 400px; max-width: 90vw;">
+        <q-card-section>
+          <div class="text-h6">{{ opCurrent.name }}</div>
+          <div class="text-caption text-grey">{{ opDeviceName }}</div>
+          <div v-if="opCurrent.description" class="q-mt-sm">{{ opCurrent.description }}</div>
+        </q-card-section>
+
+        <q-card-section v-if="opCurrent.params?.length" class="q-gutter-sm">
+          <template v-for="p in opCurrent.params" :key="p.name">
+            <q-select
+              v-if="p.type === 'select' && p.options"
+              v-model="opParams[p.name]"
+              :label="p.label || p.name"
+              :options="Object.entries(p.options).map(([k, v]) => ({ label: `${k} (${v})`, value: Number(k) }))"
+              dense outlined emit-value map-options
+              :disable="opRunning"
+            />
+            <q-input
+              v-else
+              v-model.number="opParams[p.name]"
+              :label="p.label || p.name"
+              type="number"
+              dense outlined
+              :hint="p.min !== undefined || p.max !== undefined ? `${p.min ?? ''} – ${p.max ?? ''}` : undefined"
+              :disable="opRunning"
+            />
+          </template>
+        </q-card-section>
+
+        <q-card-section v-if="opCurrent.confirm" class="q-pt-none">
+          <q-checkbox v-model="opConfirmed" :label="opCurrent.confirm" :disable="opRunning" />
+        </q-card-section>
+
+        <q-card-section v-if="opResult" class="q-pt-none">
+          <q-banner dense rounded :class="opResult.success ? 'bg-positive text-white' : 'bg-negative text-white'">
+            {{ opResult.success ? 'Done' : opResult.error }}
+          </q-banner>
+          <q-checkbox
+            v-if="opResult.occupied"
+            v-model="opForce"
+            label="Force – run anyway (address conflict on the bus)"
+            color="negative"
+            class="q-mt-sm"
+            :disable="opRunning"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Close" v-close-popup :disable="opRunning" />
+          <q-btn
+            label="Run"
+            icon="play_arrow"
+            color="deep-orange"
+            :loading="opRunning"
+            :disable="!!opParamError || (!!opCurrent.confirm && !opConfirmed) || store.connectionStatus !== 'connected'"
+            @click="executeOperation"
+          >
+            <q-tooltip v-if="opParamError">{{ opParamError }}</q-tooltip>
+          </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -436,15 +559,20 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
+import { defineComponent, ref, reactive, computed, onMounted, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import { useModbusStore } from 'stores/modbus-store';
+import { deviceFieldKey } from 'stores/trend-store';
+import TrendButton from 'components/TrendButton.vue';
 import { getDecoder } from 'src/decoders';
-import type { DeviceDecoder, DecoderField } from 'src/decoders/types';
+import type { DeviceDecoder, DecoderField, DeviceOperation } from 'src/decoders/types';
 
 export default defineComponent({
   name: 'DeviceManager',
+  components: { TrendButton },
   setup() {
     const store = useModbusStore();
+    const $q = useQuasar();
 
     // Load decoders on mount
     onMounted(async () => {
@@ -549,11 +677,23 @@ export default defineComponent({
       _mapString: string;
     }
 
-    const editDecoder = reactive<{ id: string; name: string; defaultSlaveId: number; fields: EditField[] }>({
+    const editDecoder = reactive<{ id: string; name: string; defaultSlaveId: number; maxReadCount: number | null; fields: EditField[]; operationsJson: string }>({
       id: '',
       name: '',
       defaultSlaveId: 1,
-      fields: []
+      maxReadCount: null,
+      fields: [],
+      operationsJson: ''
+    });
+
+    const operationsJsonError = computed(() => {
+      const s = editDecoder.operationsJson.trim();
+      if (!s) return '';
+      try {
+        return Array.isArray(JSON.parse(s)) ? '' : 'Must be a JSON array';
+      } catch (e) {
+        return e instanceof Error ? e.message : String(e);
+      }
     });
 
     const registerTypeOptions = [
@@ -579,6 +719,7 @@ export default defineComponent({
       { name: 'address', label: 'Address', field: 'address', align: 'center' as const },
       { name: 'name', label: 'Name', field: 'name', align: 'left' as const },
       { name: 'type', label: 'Reg Type', field: 'type', align: 'left' as const },
+      { name: 'readOnly', label: 'RO', field: 'readOnly', align: 'center' as const },
       { name: 'dataType', label: 'Data Type', field: 'dataType', align: 'left' as const },
       { name: 'unit', label: 'Unit', field: 'unit', align: 'left' as const },
       { name: 'scale', label: 'Scale', field: 'scale', align: 'center' as const },
@@ -628,7 +769,9 @@ export default defineComponent({
       editDecoder.id = d.id;
       editDecoder.name = d.name;
       editDecoder.defaultSlaveId = d.defaultSlaveId;
+      editDecoder.maxReadCount = d.maxReadCount ?? null;
       editDecoder.fields = d.fields.map((f, i) => fieldToEdit(f, i));
+      editDecoder.operationsJson = d.operations?.length ? JSON.stringify(d.operations, null, 2) : '';
       editDialog.value = true;
     }
 
@@ -638,7 +781,9 @@ export default defineComponent({
       editDecoder.id = '';
       editDecoder.name = '';
       editDecoder.defaultSlaveId = 1;
+      editDecoder.maxReadCount = null;
       editDecoder.fields = [];
+      editDecoder.operationsJson = '';
       editDialog.value = true;
     }
 
@@ -691,9 +836,15 @@ export default defineComponent({
           if (f.wordOrder) clean.wordOrder = f.wordOrder;
           if (f.transform) clean.transform = f.transform;
           if (f.map && Object.keys(f.map).length > 0) clean.map = f.map;
+          if (f.readOnly && (f.type === 'holding' || f.type === 'coil')) clean.readOnly = true;
           return clean;
         })
       };
+      if (editDecoder.maxReadCount) decoder.maxReadCount = editDecoder.maxReadCount;
+      if (editDecoder.operationsJson.trim()) {
+        const ops = JSON.parse(editDecoder.operationsJson) as DeviceOperation[];
+        if (ops.length) decoder.operations = ops;
+      }
       const result = await store.saveDecoder(decoder);
       if (result.success) {
         editDialog.value = false;
@@ -716,16 +867,30 @@ export default defineComponent({
     const scanDialog = ref(false);
     const scanStart = ref(1);
     const scanEnd = ref(20);
-    const scanTimeout = ref(100);
+    // TCP gateways wait their own serial timeout (often ~2 s) for a missing ID and queue
+    // further requests meanwhile, so a shorter scan timeout makes every later ID time out too
+    const defaultScanTimeout = () => (store.connectionType === 'rtu' ? 200 : 2500);
+    const scanTimeout = ref(defaultScanTimeout());
+    watch(() => store.connectionType, () => { scanTimeout.value = defaultScanTimeout(); });
     const isScanning = ref(false);
     const scanHasRun = ref(false);
     const scanResults = ref<number[]>([]);
     const currentScanId = ref<number | null>(null);
+    const scanStopping = ref(false);
+    let scanAbort: AbortController | null = null;
+
+    function stopScan() {
+       scanStopping.value = true;
+       scanAbort?.abort();
+    }
 
     async function performScan() {
+       scanAbort = new AbortController();
+       scanStopping.value = false;
        isScanning.value = true;
        scanHasRun.value = true;
        scanResults.value = [];
+       for (const k of Object.keys(scanFoundDecoder)) delete scanFoundDecoder[Number(k)];
        currentScanId.value = null;
 
        // Listen for progress updates
@@ -734,19 +899,36 @@ export default defineComponent({
        });
 
        try {
-         const results = await window.myAPI.scanDevices(scanStart.value, scanEnd.value, scanTimeout.value);
+         const results = await window.myAPI.scanDevices(scanStart.value, scanEnd.value, scanTimeout.value, scanAbort.signal);
          scanResults.value = results;
        } catch (e) {
          console.error(e);
        } finally {
          isScanning.value = false;
+         scanStopping.value = false;
+         scanAbort = null;
          currentScanId.value = null;
        }
     }
 
+    const scanFoundDecoder = reactive<Record<number, string | null>>({});
+    const decoderOptions = computed(() => store.availableDecoders.map((d: DeviceDecoder) => ({ label: d.name, value: d.id })));
+
+    function devicesWithSlaveId(id: number) {
+       return store.devices.filter(d => d.slaveId === id).map(d => d.name);
+    }
+
     function useFoundID(id: number) {
-       addSlaveId.value = id;
+       store.manualSlaveId = id;
        scanDialog.value = false;
+       $q.notify({ message: `Manual Operation Slave ID set to ${id}`, color: 'primary', timeout: 1500 });
+    }
+
+    function addFoundDevice(id: number) {
+       const decoderId = scanFoundDecoder[id];
+       if (!decoderId) return;
+       store.addDevice(decoderId, id);
+       $q.notify({ message: `Added ${getDecoder(decoderId)?.name ?? decoderId} (ID: ${id})`, color: 'positive', timeout: 1500 });
     }
 
     // Info Dialog Logic
@@ -756,7 +938,7 @@ export default defineComponent({
     const infoColumns = [
       { name: 'address', label: 'Address', field: 'address', sortable: true, align: 'left' },
       { name: 'name', label: 'Name', field: 'name', sortable: true, align: 'left' },
-      { name: 'type', label: 'Type', field: 'type', sortable: true, align: 'left' },
+      { name: 'type', label: 'Type', field: (f: DecoderField) => f.readOnly ? `${f.type} (read-only)` : f.type, sortable: true, align: 'left' },
       { name: 'dataType', label: 'Data Type', field: 'dataType', align: 'left' },
       { name: 'unit', label: 'Unit', field: 'unit', align: 'left' },
       { name: 'scale', label: 'Scale', field: 'scale', align: 'right' },
@@ -780,15 +962,83 @@ export default defineComponent({
        store.writeDeviceValue(deviceId, fieldName, value);
     }
 
+    // Operations Dialog Logic
+    const opDialog = ref(false);
+    const opDeviceId = ref('');
+    const opCurrent = ref<DeviceOperation | null>(null);
+    const opParams = reactive<Record<string, number>>({});
+    const opConfirmed = ref(false);
+    const opRunning = ref(false);
+    const opForce = ref(false);
+    const opResult = ref<{ success: boolean; error?: string; occupied?: boolean } | null>(null);
+
+    const opDeviceName = computed(() => store.devices.find(d => d.id === opDeviceId.value)?.name ?? '');
+
+    const opParamError = computed(() => {
+      for (const p of opCurrent.value?.params ?? []) {
+        const v = opParams[p.name];
+        const label = p.label || p.name;
+        if (typeof v !== 'number' || isNaN(v)) return `${label}: value required`;
+        if (p.min !== undefined && v < p.min) return `${label}: min ${p.min}`;
+        if (p.max !== undefined && v > p.max) return `${label}: max ${p.max}`;
+      }
+      return '';
+    });
+
+    function getOperations(decoderId: string): DeviceOperation[] {
+      return getDecoder(decoderId)?.operations ?? [];
+    }
+
+    function openOperation(deviceId: string, op: DeviceOperation) {
+      const dev = store.devices.find(d => d.id === deviceId);
+      opDeviceId.value = deviceId;
+      opCurrent.value = op;
+      Object.keys(opParams).forEach(k => delete opParams[k]);
+      (op.params ?? []).forEach(p => {
+        opParams[p.name] = p.default === '{slaveId}' ? (dev?.slaveId ?? 1) : Number(p.default ?? p.min ?? 0);
+      });
+      opConfirmed.value = false;
+      opForce.value = false;
+      opResult.value = null;
+      opDialog.value = true;
+    }
+
+    async function executeOperation() {
+      if (!opCurrent.value) return;
+      opRunning.value = true;
+      opResult.value = null;
+      try {
+        opResult.value = await store.runDeviceOperation(opDeviceId.value, opCurrent.value.id, { ...opParams }, opForce.value);
+      } finally {
+        opRunning.value = false;
+        opConfirmed.value = false;
+        opForce.value = false;
+      }
+    }
+
     function blurActive() {
       (document.activeElement as HTMLElement | null)?.blur();
     }
 
     return { 
       store, 
+      deviceFieldKey,
       getFields, 
       writeValue, 
       Object,
+      // Operations
+      opDialog,
+      opCurrent,
+      opParams,
+      opConfirmed,
+      opRunning,
+      opResult,
+      opForce,
+      opDeviceName,
+      opParamError,
+      getOperations,
+      openOperation,
+      executeOperation,
       // Add Device Dialog
       addDeviceDialog,
       addSelectedDecoder,
@@ -827,6 +1077,7 @@ export default defineComponent({
       parseMapString,
       handleSaveDecoder,
       confirmDeleteDecoder,
+      operationsJsonError,
       // Info Dialog
       infoDialog,
       currentInfoDecoder,
@@ -842,7 +1093,13 @@ export default defineComponent({
       scanResults,
       currentScanId,
       performScan,
+      stopScan,
+      scanStopping,
       useFoundID,
+      scanFoundDecoder,
+      decoderOptions,
+      devicesWithSlaveId,
+      addFoundDevice,
       blurActive
     };
   }

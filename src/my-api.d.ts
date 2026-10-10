@@ -6,6 +6,11 @@ export interface IConnectRTU {
   stopBits: number;
 }
 
+export interface ISerialPort {
+  path: string;
+  description: string | null;
+}
+
 export interface IConnectTCP {
   host: string;
   port: number;
@@ -22,13 +27,16 @@ export interface IDecoderField {
   wordOrder?: 'big-endian' | 'little-endian';
   transform?: string;
   map?: Record<string, string>;
+  readOnly?: boolean;
 }
 
 export interface IDeviceDecoder {
   id: string;
   name: string;
   defaultSlaveId: number;
+  maxReadCount?: number;
   fields: IDecoderField[];
+  operations?: unknown[];
   isDefault?: boolean;
 }
 
@@ -37,10 +45,13 @@ export interface IModbusAPI {
   connectTCP: (host: string, port: number) => Promise<{ success: boolean; error?: string }>;
   connectRtuOverTcp: (host: string, port: number) => Promise<{ success: boolean; error?: string }>;
   disconnect: () => Promise<{ success: boolean; error?: string }>;
+  listSerialPorts: () => Promise<ISerialPort[]>;
   readModbus: (type: 'holding' | 'input' | 'coil' | 'discrete', id: number, start: number, length: number) => Promise<{ success: boolean; data?: number[] | boolean[], error?: string }>;
   writeModbus: (type: 'holding' | 'coil', id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[], strategy?: 'single' | 'multiple') => Promise<{ success: boolean; error?: string }>;
-  scanDevices: (startId: number, endId: number, timeout: number) => Promise<number[]>;
-  scanValues: (startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
+  /** Aborting `signal` stops the scan after its current request; it resolves with the IDs found so far. */
+  scanDevices: (startId: number, endId: number, timeout: number, signal?: AbortSignal) => Promise<number[]>;
+  scanValues: (id: number, startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
+  setFrameLog: (enabled: boolean) => Promise<void>;
   
   // Decoder Management
   getDecoders: () => Promise<{ success: boolean; data?: IDeviceDecoder[]; error?: string }>;
@@ -49,6 +60,13 @@ export interface IModbusAPI {
   saveDecoder: (decoder: IDeviceDecoder) => Promise<{ success: boolean; error?: string }>;
   deleteDecoder: (decoderId: string) => Promise<{ success: boolean; error?: string }>;
   downloadDecoderPack: (url?: string) => Promise<{ success: boolean; imported?: string[]; errors?: string[]; error?: string }>;
+
+  // Profiles (the content is defined by src/stores/profile-store.ts, the backend only stores it)
+  loadProfiles: () => Promise<{ success: boolean; data?: Record<string, unknown> | null; error?: string }>;
+  saveProfiles: (data: object) => Promise<{ success: boolean; error?: string }>;
+  exportProfile: (profile: object, fileName: string) => Promise<{ success: boolean; error?: string }>;
+  importProfile: () => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
+  exportCsv: (content: string, fileName: string) => Promise<{ success: boolean; error?: string }>;
   
   // Auto Update
   checkForUpdates: () => Promise<unknown>;
@@ -61,10 +79,21 @@ export interface IModbusAPI {
   onUpdateDownloaded: (callback: (info: Record<string, unknown>) => void) => void;
 
   onLog: (callback: (message: string) => void) => void;
+  onRawFrame: (callback: (frame: RawFrame) => void) => void;
   onStatusChange: (callback: (status: string) => void) => void;
   onTrafficStats: (callback: (stats: { txBytes: number, rxBytes: number, txMsg: number, rxMsg: number }) => void) => void;
   onScanProgress: (callback: (id: number) => void) => void;
   onValueScanProgress: (callback: (progress: number) => void) => void;
+}
+
+/** Raw bytes of one request or response, captured while `setFrameLog(true)` is on. */
+export interface RawFrame {
+  dir: 'tx' | 'rx';
+  bytes: number[];
+  ts: number; // ms since epoch
+  elapsedMs: number | null; // rx: time since the request was written
+  proto: 'tcp' | 'rtu';
+  note: string | null; // e.g. 'no response', 'transaction ID mismatch, ignored'
 }
 
 declare global {

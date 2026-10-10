@@ -27,7 +27,9 @@ Dekodér je prostý JSON soubor, který lze:
 | `id` | `string` | ✅ | Unikátní identifikátor dekodéru (bez mezer, bez diakritiky, doporučeno kebab-case) |
 | `name` | `string` | ✅ | Zobrazovaný název zařízení v aplikaci |
 | `defaultSlaveId` | `number` | ✅ | Výchozí Slave ID na Modbus sběrnici (1–247). Lze přepsat při přidávání zařízení. |
+| `maxReadCount` | `number` | – | Maximální počet registrů v jednom čtecím požadavku. Pro zařízení, která neumí číst velké bloky (např. QDY30A max. 20). Výchozí: `100` |
 | `fields` | `array` | ✅ | Seznam registrů / polí ke čtení (viz níže) |
+| `operations` | `array` | – | Vícekrokové zápisové operace, např. změna adresy + uložení (viz [Operace](#operace-operations)) |
 
 ---
 
@@ -61,6 +63,7 @@ Každý prvek v poli `fields` popisuje jeden nebo více registrů k přečtení 
 | `wordOrder` | `string` | – | Pořadí slov u 32-bitových typů: `"big-endian"` (High–Low, výchozí) nebo `"little-endian"` (Low–High) |
 | `transform` | `string` | – | Tělo JavaScript funkce pro vlastní transformaci. Proměnná `value` obsahuje hodnotu po aplikaci `scale`. Funkce musí obsahovat `return`. |
 | `map` | `object` | – | Mapování číselné hodnoty na řetězec (enum). Klíče jsou čísla jako řetězce. |
+| `readOnly` | `boolean` | – | Jen pro `holding`/`coil`: hodnota se pouze zobrazuje a nelze ji zapsat z UI. Pro zařízení, která používají jen holding registry, ale některé z nich jsou jen pro čtení (např. měřené hodnoty). Výchozí: `false` |
 
 ---
 
@@ -83,9 +86,9 @@ Každý prvek v poli `fields` popisuje jeden nebo více registrů k přečtení 
 
 | `type` | Modbus funkce (čtení) | Popis | Zápis |
 |---|---|---|---|
-| `holding` | FC 03 | Holding registers – universální R/W registry | ✅ |
+| `holding` | FC 03 | Holding registers – universální R/W registry | ✅ (pokud není `readOnly`) |
 | `input` | FC 04 | Input registers – měřené hodnoty (jen čtení) | ❌ |
-| `coil` | FC 01 | Digitální výstup (boolean) | ✅ |
+| `coil` | FC 01 | Digitální výstup (boolean) | ✅ (pokud není `readOnly`) |
 | `discrete` | FC 02 | Digitální vstup (boolean, jen čtení) | ❌ |
 
 ---
@@ -199,6 +202,74 @@ IEEE 754 float uložený ve 2 registrech. `wordOrder: "big-endian"` je výchozí
 
 ---
 
+## Operace (operations)
+
+Některá nastavení nejdou změnit jedním zápisem do registru – např. u QDY30A se nová adresa zapíše do registru `0` a pak je nutné nastavení potvrdit/uložit zápisem do dalšího registru. Takové postupy se popisují v poli `operations`. U přidaného zařízení se pak objeví tlačítko **Operations** (ikona klíče), které otevře dialog s parametry a spustí kroky postupně.
+
+```json
+"operations": [
+  {
+    "id": "change-slave-address",
+    "name": "Change Slave Address",
+    "description": "Zapíše novou adresu a uloží nastavení.",
+    "confirm": "Zařízení bude odpovídat jen na nové adrese",
+    "params": [
+      { "name": "newAddress", "label": "New Slave Address", "min": 1, "max": 247, "default": "{slaveId}" }
+    ],
+    "steps": [
+      { "action": "checkFree", "slaveId": "{newAddress}" },
+      { "action": "write", "address": 0, "value": "{newAddress}" },
+      { "action": "delay", "ms": 300 },
+      { "action": "write", "address": 15, "value": 0, "slaveId": "{newAddress}" }
+    ],
+    "setSlaveId": "{newAddress}"
+  }
+]
+```
+
+### Vlastnosti operace
+
+| Vlastnost | Typ | Povinné | Popis |
+|---|---|---|---|
+| `id` | `string` | ✅ | Unikátní identifikátor operace v rámci dekodéru |
+| `name` | `string` | ✅ | Název zobrazený v menu |
+| `description` | `string` | – | Popis zobrazený v menu a v dialogu |
+| `confirm` | `string` | – | Text zaškrtávacího potvrzení, bez kterého nejde operaci spustit |
+| `params` | `array` | – | Parametry, které uživatel vyplní před spuštěním |
+| `steps` | `array` | ✅ | Kroky prováděné postupně; při chybě se zbytek přeskočí |
+| `setSlaveId` | `number \| string` | – | Po úspěchu změní Slave ID zařízení v aplikaci (typicky `"{newAddress}"`) |
+
+### Parametry (`params`)
+
+| Vlastnost | Typ | Popis |
+|---|---|---|
+| `name` | `string` | Název, na který se kroky odkazují jako `"{name}"` |
+| `label` | `string` | Popisek v dialogu |
+| `type` | `string` | `"number"` (výchozí) nebo `"select"` |
+| `min`, `max` | `number` | Povolený rozsah |
+| `default` | `number \| string` | Výchozí hodnota; `"{slaveId}"` = aktuální Slave ID zařízení |
+| `options` | `object` | Pro `"select"`: mapa hodnota → popisek (stejně jako `map` u polí) |
+
+### Kroky (`steps`)
+
+| Vlastnost | Typ | Popis |
+|---|---|---|
+| `action` | `string` | `"write"`, `"delay"` nebo `"checkFree"` |
+| `type` | `string` | `"holding"` (výchozí) nebo `"coil"` |
+| `address` | `number` | Adresa registru (0-based) |
+| `value` | `number \| string \| array` | Hodnota k zápisu – číslo nebo odkaz `"{param}"`; pole = zápis více registrů |
+| `strategy` | `string` | `"single"` (FC 06/05) nebo `"multiple"` (FC 16/15); výchozí podle počtu hodnot |
+| `slaveId` | `number \| string` | Slave ID pro tento krok; výchozí je aktuální ID zařízení. Např. `"{newAddress}"` pro potvrzení na nové adrese |
+| `ignoreError` | `boolean` | Pokračovat i když zařízení neodpoví (např. když po změně adresy už neodpoví na staré) |
+| `ms` | `number` | Pro `"delay"`: délka pauzy v milisekundách |
+| `timeout` | `number` | Pro `"checkFree"`: jak dlouho čekat na odpověď (ms, výchozí 500) |
+
+**`checkFree`** ověří, že na adrese `slaveId` není jiné zařízení – ani v aplikaci, ani na sběrnici (odpověď daty i Modbus výjimkou = obsazeno, timeout = volno). Pokud je adresa obsazená, operace se zastaví ještě před prvním zápisem a v dialogu se objeví volba **Force**, se kterou lze operaci spustit znovu i přes konflikt. Když se `slaveId` rovná aktuální adrese zařízení, kontrola se přeskočí.
+
+> `"{slaveId}"` v hodnotách vždy znamená Slave ID **před** spuštěním operace.
+
+---
+
 ## Kompletní příklad – jednoduchý měřič energie
 
 ```json
@@ -272,6 +343,7 @@ Pokud generuješ dekodér na základě dokumentace k zařízení (datasheet, Mod
 5. **`map`** – pro stavové registry vždy vypiš všechny hodnoty z datasheetu.
 6. Nepoužívej `transform` tam, kde stačí `scale` + `precision` + `map`.
 7. Ujisti se, že `id` je unikátní v rámci celé sady dekodérů.
+8. **`readOnly`** – pokud zařízení vystavuje měřené/stavové hodnoty v holding registrech a datasheet je uvádí jako R (jen čtení), nastav `readOnly: true`.
 
 ### Adresní konvence
 

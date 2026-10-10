@@ -40,7 +40,44 @@
 
     <div v-else class="row q-col-gutter-sm">
       <div class="col-6">
-        <q-input v-model="store.rtuPath" label="Path" dense outlined :disable="isConnected" />
+        <q-select
+          v-model="store.rtuPath"
+          label="Port"
+          dense
+          outlined
+          use-input
+          fill-input
+          hide-selected
+          input-debounce="0"
+          emit-value
+          map-options
+          :options="portOptions"
+          :loading="portsLoading"
+          @filter="filterPorts"
+          @input-value="updatePath"
+          :disable="isConnected"
+        >
+          <template v-slot:option="scope">
+            <q-item v-bind="scope.itemProps">
+              <q-item-section>
+                <q-item-label>{{ scope.opt.value }}</q-item-label>
+                <q-item-label v-if="scope.opt.description" caption>{{ scope.opt.description }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </template>
+          <template v-slot:no-option>
+            <q-item>
+              <q-item-section class="text-grey">
+                No serial ports found
+              </q-item-section>
+            </q-item>
+          </template>
+          <template v-slot:append>
+            <q-btn round dense flat icon="refresh" size="sm" :disable="isConnected" @click.stop.prevent="loadPorts">
+              <q-tooltip>Refresh ports</q-tooltip>
+            </q-btn>
+          </template>
+        </q-select>
       </div>
       <div class="col-3">
         <q-input v-model.number="store.rtuBaudRate" label="Baud Rate" type="number" dense outlined :disable="isConnected" />
@@ -85,7 +122,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref } from 'vue';
+import { defineComponent, computed, ref, onMounted } from 'vue';
+import type { ISerialPort } from 'src/my-api';
 import { useModbusStore } from 'stores/modbus-store';
 
 export default defineComponent({
@@ -109,13 +147,48 @@ export default defineComponent({
       store.tcpHost = val;
     }
     
+    // Serial port list
+    const serialPorts = ref<ISerialPort[]>([]);
+    const portsLoading = ref(false);
+    const portFilter = ref('');
+
+    async function loadPorts() {
+      portsLoading.value = true;
+      try {
+        serialPorts.value = await window.myAPI.listSerialPorts();
+      } catch (e) {
+        console.error('Failed to list serial ports', e);
+        serialPorts.value = [];
+      } finally {
+        portsLoading.value = false;
+      }
+    }
+
+    const portOptions = computed(() => {
+      const needle = portFilter.value.toLowerCase();
+      return serialPorts.value
+        .filter(p => !needle || p.path.toLowerCase().includes(needle) || (p.description ?? '').toLowerCase().includes(needle))
+        .map(p => ({ label: p.path, value: p.path, description: p.description }));
+    });
+
+    function filterPorts(val: string, update: (fn: () => void) => void) {
+      // Show the full list when the input just mirrors the current selection
+      update(() => { portFilter.value = val === store.rtuPath ? '' : val; });
+    }
+
+    function updatePath(val: string) {
+      store.rtuPath = val;
+    }
+
+    onMounted(() => { void loadPorts(); });
+
     const statusColor = computed(() => {
       if (store.connectionStatus === 'connected') return 'text-positive text-bold';
       if (store.connectionStatus === 'error') return 'text-negative text-bold';
       return 'text-grey';
     });
 
-    return { store, isConnected, statusColor, filterOptions, filterFn, updateHost };
+    return { store, isConnected, statusColor, filterOptions, filterFn, updateHost, portOptions, portsLoading, filterPorts, updatePath, loadPorts };
   }
 });
 </script>

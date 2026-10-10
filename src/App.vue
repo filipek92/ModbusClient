@@ -59,6 +59,11 @@ export default defineComponent({
             icon: 'error'
           });
         });
+
+        // Check after the listeners above are registered, so no event is missed
+        if (import.meta.env.PROD) {
+          void window.myAPI.checkForUpdates();
+        }
       }
     });
   }

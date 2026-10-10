@@ -7,6 +7,18 @@
 
     <q-card-section>
       <div class="row q-col-gutter-sm items-center">
+        <!-- Slave ID -->
+        <div class="col-12 col-sm-2">
+          <q-input
+            v-model.number="slaveId"
+            label="Slave ID"
+            type="number"
+            outlined
+            dense
+            hint="Device address (1-247)"
+          />
+        </div>
+
         <!-- Target Value -->
         <div class="col-12 col-sm-3">
           <q-input
@@ -20,18 +32,19 @@
         </div>
 
         <!-- Start Address -->
-        <div class="col-12 col-sm-3">
+        <div class="col-12 col-sm-2">
           <q-input
             v-model.number="startAddress"
             label="Start Address"
             type="number"
             outlined
             dense
+            hint="First register address (0-based)"
           />
         </div>
 
         <!-- Count -->
-        <div class="col-12 col-sm-3">
+        <div class="col-12 col-sm-2">
           <q-input
             v-model.number="count"
             label="Count / Range"
@@ -132,6 +145,7 @@ export default defineComponent({
     const $q = useQuasar();
     
     // Inputs
+    const slaveId = ref<number>(1);
     const targetValue = ref<number>(0);
     const startAddress = ref<number>(0);
     const count = ref<number>(100);
@@ -166,8 +180,9 @@ export default defineComponent({
         if (scanInput.value) types.push('input');
 
         // We assume the backend takes care of the scanning logic
-        // The exposed API call in preload: scanValues(startAddr, count, value, types)
+        // The exposed API call in preload: scanValues(id, startAddr, count, value, types)
         const matches = await window.myAPI.scanValues(
+          slaveId.value,
           startAddress.value,
           count.value,
           targetValue.value,
@@ -197,6 +212,7 @@ export default defineComponent({
     };
 
     return {
+      slaveId,
       targetValue,
       startAddress,
       count,

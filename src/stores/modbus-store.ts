@@ -1,11 +1,30 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { availableDecoders, getDecoder, loadDecoders, importDecoder, exportDecoder, saveDecoder, deleteDecoder, downloadDecoderPack } from '../decoders';
-import type { DecoderField } from '../decoders/types';
+import type { DecoderField, OperationValue } from '../decoders/types';
+import type { ConnectionType, Workspace } from './workspace';
+import { useTrendStore, collectorKey, deviceKey, deviceFieldKey } from './trend-store';
+import type { RawFrame } from '../my-api';
+
+export type LogLevel = 'info' | 'warn' | 'error' | 'tx' | 'rx';
 
 export interface LogEntry {
   id: number;
+  ts: number; // ms since epoch
+  level: LogLevel;
   message: string;
+  frame?: RawFrame; // set for 'tx' / 'rx'
+}
+
+const LOG_LIMIT = 1000;
+const FRAME_LOG_KEY = 'modbus_frame_log';
+
+// Backend and store messages carry no level, so it is derived from their wording
+function inferLevel(message: string): LogLevel {
+  if (/^(Found device|Match found)/.test(message)) return 'info';
+  if (/\b(error|failed|exception|cannot)\b/i.test(message)) return 'error';
+  if (/\b(aborted|busy|occupied|timed out|retrying)\b/i.test(message)) return 'warn';
+  return 'info';
 }
 
 export type RegisterType = 'holding' | 'input' | 'coil' | 'discrete';
@@ -20,6 +39,7 @@ export interface Collector {
   interval: number;
   name: string;
   jsConversion: string; 
+  unit: string;
   lastValue: string | number | null;
   error: string | null;
   timerId: ReturnType<typeof setInterval> | null;
@@ -40,15 +60,19 @@ export interface ActiveDevice {
 }
 
 export const useModbusStore = defineStore('modbus', () => {
+  const trend = useTrendStore();
+
   // State
   const connectionStatus = ref('disconnected');
   const logs = ref<LogEntry[]>([]);
+  const frameLogEnabled = ref(localStorage.getItem(FRAME_LOG_KEY) === '1');
+  let nextLogId = 1;
   const trafficStats = ref({ txBytes: 0, rxBytes: 0, txMsg: 0, rxMsg: 0 });
   const collectors = ref<Collector[]>([]);
   const devices = ref<ActiveDevice[]>([]);
   
   // Connection Settings (UI state)
-  const connectionType = ref<'tcp' | 'rtu' | 'rtu-over-tcp'>('tcp');
+  const connectionType = ref<ConnectionType>('tcp');
   
   // IP History
   const ipHistory = ref<string[]>(JSON.parse(localStorage.getItem('modbus_ip_history') || '[]'));
@@ -70,6 +94,8 @@ export const useModbusStore = defineStore('modbus', () => {
   const manualData = ref<number[] | boolean[] | null>(null);
   const manualReadStart = ref(0); // Snapshot for displaying correct addresses
   const manualTimestamp = ref('');
+  const manualBusy = ref(false); // A manual read/write is in progress
+  const manualDuration = ref<number | null>(null); // Response time of the last manual read/write [ms]
 
   // Manual Write State
   const manualWriteValue = ref(''); // string for input, comma separated
@@ -77,9 +103,27 @@ export const useModbusStore = defineStore('modbus', () => {
   const manualWriteStrategy = ref<'single' | 'multiple'>('single');
 
   // Actions
-  function addLog(message: string) {
-    logs.value.push({ id: Date.now(), message });
-    if (logs.value.length > 200) logs.value.shift();
+  function pushLog(entry: Omit<LogEntry, 'id'>) {
+    logs.value.push({ id: nextLogId++, ...entry });
+    if (logs.value.length > LOG_LIMIT) logs.value.splice(0, logs.value.length - LOG_LIMIT);
+  }
+
+  function addLog(message: string, level: LogLevel = inferLevel(message)) {
+    pushLog({ ts: Date.now(), level, message });
+  }
+
+  function addFrame(frame: RawFrame) {
+    pushLog({ ts: frame.ts, level: frame.dir, message: '', frame });
+  }
+
+  function clearLogs() {
+    logs.value = [];
+  }
+
+  async function setFrameLog(enabled: boolean) {
+    frameLogEnabled.value = enabled;
+    localStorage.setItem(FRAME_LOG_KEY, enabled ? '1' : '0');
+    await window.myAPI.setFrameLog(enabled);
   }
 
   function setStatus(status: string) {
@@ -112,23 +156,34 @@ export const useModbusStore = defineStore('modbus', () => {
   }
 
   async function manualRead() {
-    const res = await window.myAPI.readModbus(manualType.value, manualSlaveId.value, manualStart.value, manualLength.value);
-    manualTimestamp.value = new Date().toLocaleString();
+    if (manualBusy.value) return;
+    manualBusy.value = true;
+    try {
+      const t0 = performance.now();
+      const res = await window.myAPI.readModbus(manualType.value, manualSlaveId.value, manualStart.value, manualLength.value);
+      manualDuration.value = performance.now() - t0;
+      manualTimestamp.value = new Date().toLocaleString();
     
-    if (res.success && res.data) {
-      manualData.value = res.data;
-      manualReadStart.value = manualStart.value;
-      manualResult.value = 'Read Success';
-      addLog(`Read [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${JSON.stringify(res.data)}`);
-    } else {
-      manualData.value = null;
-      manualResult.value = 'Error: ' + res.error;
-      addLog(`Read Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
+      if (res.success && res.data) {
+        manualData.value = res.data;
+        manualReadStart.value = manualStart.value;
+        manualResult.value = 'Read Success';
+        addLog(`Read [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${JSON.stringify(res.data)}`);
+      } else {
+        manualData.value = null;
+        manualResult.value = 'Error: ' + res.error;
+        addLog(`Read Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
+      }
+    } finally {
+      manualBusy.value = false;
     }
   }
 
   async function manualWrite() {
+    if (manualBusy.value) return;
+    manualBusy.value = true;
     manualData.value = null;
+    manualDuration.value = null;
     manualTimestamp.value = new Date().toLocaleString();
     try {
       if (manualType.value === 'input' || manualType.value === 'discrete') {
@@ -159,6 +214,7 @@ export const useModbusStore = defineStore('modbus', () => {
         });
       }
 
+      const t0 = performance.now();
       const res = await window.myAPI.writeModbus(
         manualType.value as 'holding'|'coil', // only these 2 are allowed here
         manualSlaveId.value, 
@@ -166,6 +222,8 @@ export const useModbusStore = defineStore('modbus', () => {
         values,
         manualWriteStrategy.value
       );
+      manualDuration.value = performance.now() - t0;
+      manualTimestamp.value = new Date().toLocaleString();
 
       if (res.success) {
         manualResult.value = 'Write Success';
@@ -178,6 +236,8 @@ export const useModbusStore = defineStore('modbus', () => {
       const msg = e instanceof Error ? e.message : String(e);
       manualResult.value = 'Write Exception: ' + msg;
       addLog(`Write Exception: ${msg}`);
+    } finally {
+      manualBusy.value = false;
     }
   }
 
@@ -192,6 +252,7 @@ export const useModbusStore = defineStore('modbus', () => {
       interval: 1000,
       name: 'New Collector',
       jsConversion: 'return value[0];',
+      unit: '',
       lastValue: null,
       error: null,
       timerId: null
@@ -233,6 +294,7 @@ export const useModbusStore = defineStore('modbus', () => {
           const val = convert(res.data);
           c.lastValue = val;
           c.error = null;
+          trend.record(collectorKey(c.id), val);
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           c.error = 'JS Error: ' + msg;
@@ -257,6 +319,7 @@ export const useModbusStore = defineStore('modbus', () => {
   function removeCollector(id: string) {
     stopCollector(id);
     collectors.value = collectors.value.filter(c => c.id !== id);
+    trend.forget(collectorKey(id));
   }
 
   // --- Device Logic ---
@@ -284,6 +347,7 @@ export const useModbusStore = defineStore('modbus', () => {
   function removeDevice(id: string) {
     stopDevice(id);
     devices.value = devices.value.filter(d => d.id !== id);
+    trend.forget(deviceKey(id));
   }
 
   function toggleDevice(id: string) {
@@ -338,9 +402,9 @@ export const useModbusStore = defineStore('modbus', () => {
          // Modbus Max PDU size is usually ~253 bytes.
          // Read Holding (0x03) response: 1 byte (func) + 1 byte (len) + N*2 bytes data.
          // Max data bytes = 250 => 125 registers.
-         // Safely stick to 100 registers.
+         // Safely stick to 100 registers, unless the decoder sets a lower device limit.
          // For Coils, 2000 bits is the limit.
-         const MAX_REGISTER_COUNT = (type === 'coil' || type === 'discrete') ? 1900 : 100;
+         const MAX_REGISTER_COUNT = (type === 'coil' || type === 'discrete') ? 1900 : Math.min(100, decoder.maxReadCount || 100);
 
          allFields.forEach(f => {
             const len = (f.dataType === 'uint32' || f.dataType === 'int32' || f.dataType === 'float32') ? 2 : 1;
@@ -457,6 +521,7 @@ export const useModbusStore = defineStore('modbus', () => {
                 // Store raw value (scaled and precision adjusted)
                 if (typeof val === 'number' || typeof val === 'boolean') {
                    d.rawValues[f.name] = val;
+                   trend.record(deviceFieldKey(d.id, f.name), val);
                 }
 
                 // Apply Map
@@ -498,7 +563,7 @@ export const useModbusStore = defineStore('modbus', () => {
     const decoder = getDecoder(d.decoderId);
     if (!decoder) return;
     const field = decoder.fields.find(f => f.name === fieldName);
-    if (!field) return;
+    if (!field || field.readOnly) return;
 
     // Convert value back to raw register value
     let valToWrite = Number(value);
@@ -527,6 +592,82 @@ export const useModbusStore = defineStore('modbus', () => {
     }
   }
 
+  // --- Device Operations (multi-step procedures defined in decoder JSON) ---
+
+  async function runDeviceOperation(
+    deviceId: string, operationId: string, params: Record<string, number>, force = false
+  ): Promise<{ success: boolean; error?: string; occupied?: boolean }> {
+    const d = devices.value.find(x => x.id === deviceId);
+    if (!d) return { success: false, error: 'Device not found' };
+    const op = getDecoder(d.decoderId)?.operations?.find(o => o.id === operationId);
+    if (!op) return { success: false, error: 'Operation not found' };
+
+    const originalSlaveId = d.slaveId;
+    // Resolve a literal or "{param}" reference; "{slaveId}" is the Slave ID before the operation started
+    const resolve = (v: OperationValue): number => {
+      const ref = typeof v === 'string' ? /^\{(\w+)\}$/.exec(v.trim()) : null;
+      const n = ref ? (ref[1] === 'slaveId' ? originalSlaveId : params[ref[1]]) : Number(v);
+      if (typeof n !== 'number' || isNaN(n)) throw new Error(`Invalid value '${String(v)}'`);
+      return n;
+    };
+
+    addLog(`Operation [${d.name}] ${op.name} started (${JSON.stringify(params)})`);
+    try {
+      for (const [i, step] of op.steps.entries()) {
+        const label = `step ${i + 1}/${op.steps.length}`;
+        if (step.action === 'delay') {
+          await new Promise(r => setTimeout(r, step.ms ?? 0));
+          continue;
+        }
+        if (step.action === 'checkFree') {
+          if (step.slaveId === undefined) throw new Error(`${label}: missing slaveId`);
+          const target = resolve(step.slaveId);
+          // The device itself already sits on its current address
+          if (target === originalSlaveId) continue;
+          const other = devices.value.find(x => x.id !== d.id && x.slaveId === target);
+          const found = other ? [] : await window.myAPI.scanDevices(target, target, step.timeout ?? 500);
+          if (!other && !found.includes(target)) {
+            addLog(`Operation [${d.name}] ${label}: address ${target} is free`);
+            continue;
+          }
+          const reason = other ? `already used by '${other.name}' in the app` : 'another device responds on the bus';
+          if (!force) {
+            addLog(`Operation [${d.name}] ${op.name} aborted: address ${target} is occupied (${reason})`);
+            return { success: false, occupied: true, error: `Address ${target} is occupied: ${reason}` };
+          }
+          addLog(`Operation [${d.name}] ${label}: address ${target} is occupied (${reason}), continuing (forced)`);
+          continue;
+        }
+        if (step.address === undefined || step.value === undefined) throw new Error(`${label}: missing address or value`);
+        const type = step.type ?? 'holding';
+        const slaveId = step.slaveId !== undefined ? resolve(step.slaveId) : originalSlaveId;
+        const values = (Array.isArray(step.value) ? step.value : [step.value]).map(resolve);
+        const res = await window.myAPI.writeModbus(type, slaveId, step.address, values, step.strategy);
+        if (res.success) {
+          addLog(`Operation [${d.name}] ${label}: write ${type} ID:${slaveId} Addr:${step.address} Val:${values.join(',')} OK`);
+        } else if (step.ignoreError) {
+          addLog(`Operation [${d.name}] ${label}: write ID:${slaveId} Addr:${step.address} failed (ignored): ${res.error}`);
+        } else {
+          throw new Error(`${label} (Addr ${step.address}): ${res.error}`);
+        }
+      }
+
+      if (op.setSlaveId !== undefined) {
+        const newId = resolve(op.setSlaveId);
+        const decoderName = getDecoder(d.decoderId)?.name ?? d.name;
+        d.slaveId = newId;
+        d.name = `${decoderName} (ID: ${newId})`;
+        addLog(`Operation [${d.name}] Slave ID changed ${originalSlaveId} → ${newId}`);
+      }
+      addLog(`Operation [${d.name}] ${op.name} finished`);
+      return { success: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      addLog(`Operation [${d.name}] ${op.name} failed: ${msg}`);
+      return { success: false, error: msg };
+    }
+  }
+
   function stopDevice(id: string) {
     const d = devices.value.find(x => x.id === id);
     if (!d) return;
@@ -537,11 +678,100 @@ export const useModbusStore = defineStore('modbus', () => {
     }
   }
 
+  // --- Workspace (persisted by profile-store) ---
+
+  function getWorkspace(): Workspace {
+    return {
+      connection: {
+        type: connectionType.value,
+        tcpHost: tcpHost.value,
+        tcpPort: tcpPort.value,
+        rtuPath: rtuPath.value,
+        rtuBaudRate: rtuBaudRate.value,
+        rtuParity: rtuParity.value,
+        rtuDataBits: rtuDataBits.value,
+        rtuStopBits: rtuStopBits.value,
+      },
+      devices: devices.value.map(d => ({
+        id: d.id,
+        decoderId: d.decoderId,
+        slaveId: d.slaveId,
+        name: d.name,
+        enabled: d.enabled,
+        interval: d.interval,
+      })),
+      collectors: collectors.value.map(c => ({
+        id: c.id,
+        enabled: c.enabled,
+        type: c.type,
+        slaveId: c.slaveId,
+        startAddress: c.startAddress,
+        length: c.length,
+        interval: c.interval,
+        name: c.name,
+        jsConversion: c.jsConversion,
+        unit: c.unit,
+      })),
+      manual: {
+        type: manualType.value,
+        slaveId: manualSlaveId.value,
+        start: manualStart.value,
+        length: manualLength.value,
+      },
+    };
+  }
+
+  /** Replaces devices, collectors and settings; polling is restarted for the enabled ones. */
+  function applyWorkspace(ws: Workspace) {
+    devices.value.forEach(d => stopDevice(d.id));
+    collectors.value.forEach(c => stopCollector(c.id));
+    trend.clear();
+    trend.plotted = [];
+
+    const c = ws.connection;
+    connectionType.value = c.type;
+    tcpHost.value = c.tcpHost;
+    tcpPort.value = c.tcpPort;
+    rtuPath.value = c.rtuPath;
+    rtuBaudRate.value = c.rtuBaudRate;
+    rtuParity.value = c.rtuParity;
+    rtuDataBits.value = c.rtuDataBits;
+    rtuStopBits.value = c.rtuStopBits;
+
+    manualType.value = ws.manual.type;
+    manualSlaveId.value = ws.manual.slaveId;
+    manualStart.value = ws.manual.start;
+    manualLength.value = ws.manual.length;
+
+    devices.value = ws.devices.map(d => ({
+      ...d,
+      enabled: false,
+      timerId: null,
+      error: null,
+      lastUpdate: null,
+      values: {},
+      rawValues: {},
+    }));
+    collectors.value = ws.collectors.map(col => ({
+      ...col,
+      enabled: false,
+      lastValue: null,
+      error: null,
+      timerId: null,
+    }));
+
+    ws.devices.filter(d => d.enabled).forEach(d => startDevice(d.id));
+    ws.collectors.filter(col => col.enabled).forEach(col => startCollector(col.id));
+  }
+
   return {
+    getWorkspace,
+    applyWorkspace,
     ipHistory,
     connectionStatus,
     logs,
     trafficStats,
+    frameLogEnabled,
     collectors,
     devices,
     connectionType,
@@ -556,10 +786,15 @@ export const useModbusStore = defineStore('modbus', () => {
     manualStart,
     manualLength,
     manualResult,
+    manualBusy,
+    manualDuration,
     manualData,
     manualReadStart,
     manualTimestamp,
     addLog,
+    addFrame,
+    clearLogs,
+    setFrameLog,
     setStatus,
     connect,
     disconnect,
@@ -576,6 +811,7 @@ export const useModbusStore = defineStore('modbus', () => {
     removeDevice,
     toggleDevice,
     writeDeviceValue,
+    runDeviceOperation,
     availableDecoders, // Expose reactive list
     loadDecoders,
     importDecoder,

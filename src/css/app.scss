@@ -1,1 +1,7 @@
 // app global css in SCSS form
+
+// Hide the native WebKit clear button on search inputs (e.g. QSelect with use-input)
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  display: none;
+}

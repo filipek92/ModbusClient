@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-/// <reference types="electron" />
 
 declare module '*.md?raw' {
   const content: string;

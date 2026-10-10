@@ -12,12 +12,53 @@ export interface DecoderField {
   wordOrder?: 'big-endian' | 'little-endian'; // For 32-bit values (High-Low vs Low-High)
   transform?: string; // JavaScript lambda body: (value, rawContext) => return ...
   map?: Record<number, string>; // Enum mapping for value
+  readOnly?: boolean; // holding/coil that must not be written from the UI
+}
+
+// Value in an operation step: a literal number or a "{paramName}" reference
+export type OperationValue = number | string;
+
+export interface OperationParam {
+  name: string; // referenced from steps as "{name}"
+  label?: string;
+  type?: 'number' | 'select'; // default: number
+  min?: number;
+  max?: number;
+  default?: number | string; // number or "{slaveId}" (current device Slave ID)
+  options?: Record<number, string>; // for type 'select'
+}
+
+export interface OperationStep {
+  action: 'write' | 'delay' | 'checkFree';
+  // write
+  type?: 'holding' | 'coil'; // default: holding
+  address?: number;
+  value?: OperationValue | OperationValue[];
+  strategy?: 'single' | 'multiple'; // FC 06/05 vs FC 16/15
+  slaveId?: OperationValue; // default: current device Slave ID (checkFree: the address to probe)
+  ignoreError?: boolean; // continue even if the device does not answer
+  // delay
+  ms?: number;
+  // checkFree: fail if another device answers on slaveId (can be overridden by force)
+  timeout?: number; // probe timeout in ms, default 500
+}
+
+export interface DeviceOperation {
+  id: string;
+  name: string;
+  description?: string;
+  confirm?: string; // confirmation question shown before running
+  params?: OperationParam[];
+  steps: OperationStep[];
+  setSlaveId?: OperationValue; // after success, change the device Slave ID in the app
 }
 
 export interface DeviceDecoder {
   id: string;
   name: string;
   defaultSlaveId: number;
+  maxReadCount?: number; // Max registers per single read request (device limit)
   fields: DecoderField[];
+  operations?: DeviceOperation[]; // Multi-step write procedures (e.g. change address + save)
   isDefault?: boolean;
 }
