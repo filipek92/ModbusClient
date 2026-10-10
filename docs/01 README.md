@@ -1,6 +1,6 @@
 # Modbus Client – Dokumentace
 
-Modbus Client je desktopová aplikace postavená na Electronu, Vue 3 a Quasaru, určená pro komunikaci se zařízeními přes protokol **Modbus TCP** nebo **Modbus RTU**. Umožňuje čtení i zápis registrů, automatický pravidelný sběr hodnot a správu popisů zařízení (dekoderů).
+Modbus Client je desktopová aplikace postavená na Tauri (Rust), Vue 3 a Quasaru, určená pro komunikaci se zařízeními přes protokol **Modbus TCP** nebo **Modbus RTU**. Umožňuje čtení i zápis registrů, automatický pravidelný sběr hodnot a správu popisů zařízení (dekoderů).
 
 ---
 
@@ -86,7 +86,7 @@ Zařízení se popisují JSON soubory – **dekodéry**. Viz podrobný návod v 
 
 ## Automatické aktualizace
 
-Aplikace obsahuje integrovaný systém automatických aktualizací přes `electron-updater`.
+Aplikace obsahuje integrovaný systém automatických aktualizací přes Tauri updater (podepsané balíčky z GitHub Releases). Na Linuxu se sama aktualizuje pouze verze AppImage, instalaci z `.deb` aktualizuje správce balíčků.
 - Aplikace při spuštění automaticky kontroluje novější verzi na platformě GitHub.
 - V případě dostupnosti nové verze je uživatel upozorněn vizuální notifikací s možností aktualizaci stáhnout.
 - Jakmile je nová verze stažena, je nabídnuta instalace s následným restartem do nové verze.
@@ -95,6 +95,6 @@ Aplikace obsahuje integrovaný systém automatických aktualizací přes `electr
 
 ## Technické poznámky
 
-- Komunikace renderer ↔ main probíhá přes Electron IPC (`contextBridge`).
-- Dekodéry jsou uloženy v adresáři uživatelských dat (`userData`). Výchozí dekodéry jsou zabaleny přímo v aplikaci.
+- Komunikace UI ↔ backend v Rustu probíhá přes Tauri příkazy (`invoke`) a události (`listen`), viz `src/boot/tauri-api.ts`.
+- Dekodéry jsou uloženy v adresáři uživatelských dat (`~/.config/ModbusClient/decoders`, ve Windows `%APPDATA%\ModbusClient\decoders`). Výchozí dekodéry jsou zabaleny přímo v aplikaci.
 - Aplikace ukládá historii IP adres do `localStorage`.
