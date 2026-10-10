@@ -48,7 +48,7 @@ export const useModbusStore = defineStore('modbus', () => {
   const devices = ref<ActiveDevice[]>([]);
   
   // Connection Settings (UI state)
-  const connectionType = ref<'tcp' | 'rtu'>('tcp');
+  const connectionType = ref<'tcp' | 'rtu' | 'rtu-over-tcp'>('tcp');
   
   // IP History
   const ipHistory = ref<string[]>(JSON.parse(localStorage.getItem('modbus_ip_history') || '[]'));
@@ -87,8 +87,10 @@ export const useModbusStore = defineStore('modbus', () => {
   }
 
   async function connect() {
-    if (connectionType.value === 'tcp') {
-      const res = await window.myAPI.connectTCP(tcpHost.value, tcpPort.value);
+    if (connectionType.value === 'tcp' || connectionType.value === 'rtu-over-tcp') {
+      const res = connectionType.value === 'tcp'
+        ? await window.myAPI.connectTCP(tcpHost.value, tcpPort.value)
+        : await window.myAPI.connectRtuOverTcp(tcpHost.value, tcpPort.value);
       if (res.success) {
         // Save to history
         const host = tcpHost.value;

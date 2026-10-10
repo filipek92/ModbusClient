@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('myAPI', {
   // Connection
   connectRTU: (path: string, baudRate: number, parity: string, dataBits: number, stopBits: number) => ipcRenderer.invoke('connect-rtu', { path, baudRate, parity, dataBits, stopBits }),
   connectTCP: (host: string, port: number) => ipcRenderer.invoke('connect-tcp', { host, port }),
+  connectRtuOverTcp: (host: string, port: number) => ipcRenderer.invoke('connect-rtu-tcp', { host, port }),
   disconnect: () => ipcRenderer.invoke('disconnect'),
   
   // Modbus Actions
