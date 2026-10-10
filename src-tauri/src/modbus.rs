@@ -4,7 +4,10 @@ use std::{
     fmt,
     future::Future,
     io,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
@@ -21,6 +24,7 @@ use tokio_serial::{DataBits, Parity, SerialStream, StopBits};
 
 use crate::args::{lenient_int, lenient_int_opt, to_i64};
 use crate::send_log;
+use crate::tap::{Tap, Tapped};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(2000);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -47,6 +51,7 @@ struct Conn {
     status: &'static str,
     timeout: Duration,
     stats: TrafficStats,
+    tap: Arc<Tap>,
 }
 
 impl Default for Conn {
@@ -57,13 +62,22 @@ impl Default for Conn {
             status: "disconnected",
             timeout: DEFAULT_TIMEOUT,
             stats: TrafficStats::default(),
+            tap: Arc::default(),
         }
     }
 }
 
 /// All Modbus traffic goes through this mutex, so requests never interleave on the wire.
-#[derive(Default)]
 pub struct ModbusState(Mutex<Conn>);
+
+impl ModbusState {
+    pub fn new(tap: Arc<Tap>) -> Self {
+        Self(Mutex::new(Conn { tap, ..Conn::default() }))
+    }
+}
+
+/// Raw frame capture, kept outside the connection mutex so it can be toggled during a scan.
+pub struct FrameLog(pub Arc<Tap>);
 
 /// Set by `cancel_scan`; kept outside the connection mutex, which a running scan holds.
 #[derive(Default)]
@@ -91,9 +105,12 @@ impl fmt::Display for ReqError {
 
 async fn run<T>(
     timeout: Duration,
+    tap: &Tap,
     fut: impl Future<Output = tokio_modbus::Result<T>>,
 ) -> Result<T, ReqError> {
-    match tokio::time::timeout(timeout, fut).await {
+    let res = tokio::time::timeout(timeout, fut).await;
+    tap.finish();
+    match res {
         Err(_) => Err(ReqError::Timeout),
         Ok(Err(tokio_modbus::Error::Transport(e))) if e.kind() == io::ErrorKind::TimedOut => {
             Err(ReqError::Timeout)
@@ -116,12 +133,12 @@ impl Conn {
     }
 
     async fn read_registers(&mut self, slave: u8, holding: bool, addr: u16, cnt: u16) -> Result<Vec<u16>, ReqError> {
-        let t = self.timeout;
+        let (t, tap) = (self.timeout, Arc::clone(&self.tap));
         let ctx = self.ctx_for(slave)?;
         if holding {
-            run(t, ctx.read_holding_registers(addr, cnt)).await
+            run(t, &tap, ctx.read_holding_registers(addr, cnt)).await
         } else {
-            run(t, ctx.read_input_registers(addr, cnt)).await
+            run(t, &tap, ctx.read_input_registers(addr, cnt)).await
         }
     }
 
@@ -299,6 +316,8 @@ async fn connect_over_tcp(app: AppHandle, state: State<'_, ModbusState>, args: T
     match open_tcp(&args.host, args.port).await {
         Ok(stream) => {
             let _ = stream.set_nodelay(true);
+            conn.tap.reset(mode == Mode::Tcp);
+            let stream = Tapped::new(stream, Arc::clone(&conn.tap));
             conn.ctx = Some(if mode == Mode::Tcp {
                 tcp::attach(MbapFilter::new(stream))
             } else {
@@ -403,7 +422,8 @@ pub async fn connect_rtu(app: AppHandle, state: State<'_, ModbusState>, args: Rt
 
     match open_serial(&args) {
         Ok(port) => {
-            conn.ctx = Some(rtu::attach(port));
+            conn.tap.reset(false);
+            conn.ctx = Some(rtu::attach(Tapped::new(port, Arc::clone(&conn.tap))));
             conn.timeout = DEFAULT_TIMEOUT;
             conn.mode = Mode::Rtu;
             conn.reset_stats(&app);
@@ -452,14 +472,14 @@ pub async fn read_modbus(app: AppHandle, state: State<'_, ModbusState>, args: Re
     }
 
     let (s, l) = (args.start, args.length);
-    let t = conn.timeout;
+    let (t, tap) = (conn.timeout, Arc::clone(&conn.tap));
     let result: Result<(Value, u64), ReqError> = async {
         let ctx = conn.ctx_for(args.id)?;
         Ok(match args.kind.as_str() {
-            "holding" => (json!(run(t, ctx.read_holding_registers(s, l)).await?), 2 * u64::from(l)),
-            "input" => (json!(run(t, ctx.read_input_registers(s, l)).await?), 2 * u64::from(l)),
-            "coil" => (json!(run(t, ctx.read_coils(s, l)).await?), u64::from(l).div_ceil(8)),
-            "discrete" => (json!(run(t, ctx.read_discrete_inputs(s, l)).await?), u64::from(l).div_ceil(8)),
+            "holding" => (json!(run(t, &tap, ctx.read_holding_registers(s, l)).await?), 2 * u64::from(l)),
+            "input" => (json!(run(t, &tap, ctx.read_input_registers(s, l)).await?), 2 * u64::from(l)),
+            "coil" => (json!(run(t, &tap, ctx.read_coils(s, l)).await?), u64::from(l).div_ceil(8)),
+            "discrete" => (json!(run(t, &tap, ctx.read_discrete_inputs(s, l)).await?), u64::from(l).div_ceil(8)),
             other => return Err(ReqError::Protocol(format!("Unknown register type: {other}"))),
         })
     }
@@ -539,7 +559,7 @@ pub async fn write_modbus(app: AppHandle, state: State<'_, ModbusState>, args: W
     // If strategy is 'multiple', we use the multiple-write function even for a single value
     let multiple = args.strategy.as_deref() == Some("multiple") || values.len() > 1;
     let count = values.len() as u64;
-    let t = conn.timeout;
+    let (t, tap) = (conn.timeout, Arc::clone(&conn.tap));
 
     let result = if args.kind == "coil" {
         // Coils (FC05/FC15)
@@ -550,10 +570,10 @@ pub async fn write_modbus(app: AppHandle, state: State<'_, ModbusState>, args: W
         };
         if multiple {
             send_log(&app, format!("Writing Multiple Coils (FC15) ID:{id} Addr:{addr} Vals:[{}]", join(&coils)));
-            run(t, ctx.write_multiple_coils(addr, &coils)).await
+            run(t, &tap, ctx.write_multiple_coils(addr, &coils)).await
         } else {
             send_log(&app, format!("Writing Single Coil (FC05) ID:{id} Addr:{addr} Val:{}", coils[0]));
-            run(t, ctx.write_single_coil(addr, coils[0])).await
+            run(t, &tap, ctx.write_single_coil(addr, coils[0])).await
         }
     } else {
         // Holding Registers (FC06/FC16)
@@ -567,10 +587,10 @@ pub async fn write_modbus(app: AppHandle, state: State<'_, ModbusState>, args: W
         };
         if multiple {
             send_log(&app, format!("Writing Multiple Regs (FC16) ID:{id} Addr:{addr} Vals:[{}]", join(&words)));
-            run(t, ctx.write_multiple_registers(addr, &words)).await
+            run(t, &tap, ctx.write_multiple_registers(addr, &words)).await
         } else {
             send_log(&app, format!("Writing Single Reg (FC06) ID:{id} Addr:{addr} Val:{}", words[0]));
-            run(t, ctx.write_single_register(addr, words[0])).await
+            run(t, &tap, ctx.write_single_register(addr, words[0])).await
         }
     };
 
@@ -677,6 +697,12 @@ pub async fn scan_devices(
     conn.timeout = original_timeout;
     send_log(&app, format!("Scan complete. Found {} devices.", found.len()));
     Ok(found)
+}
+
+/// Turns capturing of raw TX/RX frames (`raw-frame` events) on or off.
+#[tauri::command]
+pub fn set_frame_log(frame_log: State<'_, FrameLog>, enabled: bool) {
+    frame_log.0.set_enabled(enabled);
 }
 
 /// Stops a running `scan_devices` after its current request; it then returns what it found so far.
@@ -883,9 +909,12 @@ mod tests {
 
     async fn connected(mode: Mode) -> Conn {
         let port = fake_server(mode == Mode::RtuOverTcp).await;
-        let stream = open_tcp("127.0.0.1", port).await.unwrap();
+        let tap = Arc::new(Tap::default());
+        tap.reset(mode == Mode::Tcp);
+        let stream = Tapped::new(open_tcp("127.0.0.1", port).await.unwrap(), Arc::clone(&tap));
         Conn {
             ctx: Some(if mode == Mode::Tcp { tcp::attach(MbapFilter::new(stream)) } else { rtu::attach(stream) }),
+            tap,
             mode,
             status: "connected",
             timeout: Duration::from_millis(300),
@@ -916,8 +945,9 @@ mod tests {
         assert_eq!(conn.read_registers(4, true, 5, 1).await.ok(), Some(vec![5]));
 
         let t = conn.timeout;
+        let tap = Arc::clone(&conn.tap);
         let ctx = conn.ctx_for(1).unwrap();
-        assert!(run(t, ctx.write_single_register(10, 0xFFFF)).await.is_ok());
+        assert!(run(t, &tap, ctx.write_single_register(10, 0xFFFF)).await.is_ok());
     }
 
     #[tokio::test]
@@ -933,6 +963,44 @@ mod tests {
         for i in 0..3 {
             assert_eq!(conn.read_registers(1, true, 20 + i, 2).await.ok(), Some(vec![20 + i, 21 + i]));
         }
+    }
+
+    /// Enables the tap on `conn` and returns the frames it emits.
+    fn capture(conn: &Conn) -> Arc<std::sync::Mutex<Vec<crate::tap::RawFrame>>> {
+        let frames = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink = Arc::clone(&frames);
+        conn.tap.set_sink(move |f| sink.lock().unwrap().push(f));
+        conn.tap.set_enabled(true);
+        frames
+    }
+
+    #[tokio::test]
+    async fn raw_frames_rtu() {
+        let mut conn = connected(Mode::RtuOverTcp).await;
+        let frames = capture(&conn);
+        assert_eq!(conn.read_registers(1, true, 0x10, 1).await.ok(), Some(vec![0x10]));
+        assert!(matches!(conn.read_registers(3, true, 0, 1).await, Err(ReqError::Timeout)));
+
+        let f = frames.lock().unwrap();
+        let dirs: Vec<_> = f.iter().map(|f| (f.dir, f.note)).collect();
+        assert_eq!(dirs, [("tx", None), ("rx", None), ("tx", None), ("rx", Some("no response"))]);
+        assert_eq!(f[0].bytes, [0x01, 0x03, 0x00, 0x10, 0x00, 0x01, 0x85, 0xCF]);
+        assert_eq!(f[1].bytes[..5], [0x01, 0x03, 0x02, 0x00, 0x10]);
+        assert_eq!(f[1].proto, "rtu");
+        assert!(f[3].elapsed_ms.unwrap() >= 300);
+    }
+
+    #[tokio::test]
+    async fn raw_frames_tcp_show_late_reply() {
+        let mut conn = connected(Mode::Tcp).await;
+        let frames = capture(&conn);
+        assert!(matches!(conn.read_registers(5, true, 0, 1).await, Err(ReqError::Timeout)));
+        assert_eq!(conn.read_registers(1, true, 7, 1).await.ok(), Some(vec![7]));
+
+        let f = frames.lock().unwrap();
+        let rx: Vec<_> = f.iter().filter(|f| f.dir == "rx").map(|f| f.note).collect();
+        assert_eq!(rx, [Some("no response"), Some("transaction ID mismatch, ignored"), None]);
+        assert_eq!(f.last().unwrap().bytes, [0, 1, 0, 0, 0, 5, 1, 0x03, 0x02, 0x00, 0x07]);
     }
 
     #[tokio::test]

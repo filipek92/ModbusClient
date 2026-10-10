@@ -32,6 +32,7 @@ const api: IModbusAPI = {
     }
   },
   scanValues: (id, startAddr, count, value, types) => invoke('scan_values', { args: { id, startAddr, count, value, types } }),
+  setFrameLog: (enabled) => invoke('set_frame_log', { enabled }),
 
   // Decoder Management
   getDecoders: () => invoke('get_decoders'),
@@ -60,6 +61,7 @@ const api: IModbusAPI = {
 
   // Logging, status & progress events
   onLog: on('log-message'),
+  onRawFrame: on('raw-frame'),
   onStatusChange: on('status-change'),
   onTrafficStats: on('traffic-stats'),
   onScanProgress: on('scan-progress'),

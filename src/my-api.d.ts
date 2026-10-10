@@ -51,6 +51,7 @@ export interface IModbusAPI {
   /** Aborting `signal` stops the scan after its current request; it resolves with the IDs found so far. */
   scanDevices: (startId: number, endId: number, timeout: number, signal?: AbortSignal) => Promise<number[]>;
   scanValues: (id: number, startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
+  setFrameLog: (enabled: boolean) => Promise<void>;
   
   // Decoder Management
   getDecoders: () => Promise<{ success: boolean; data?: IDeviceDecoder[]; error?: string }>;
@@ -78,10 +79,21 @@ export interface IModbusAPI {
   onUpdateDownloaded: (callback: (info: Record<string, unknown>) => void) => void;
 
   onLog: (callback: (message: string) => void) => void;
+  onRawFrame: (callback: (frame: RawFrame) => void) => void;
   onStatusChange: (callback: (status: string) => void) => void;
   onTrafficStats: (callback: (stats: { txBytes: number, rxBytes: number, txMsg: number, rxMsg: number }) => void) => void;
   onScanProgress: (callback: (id: number) => void) => void;
   onValueScanProgress: (callback: (progress: number) => void) => void;
+}
+
+/** Raw bytes of one request or response, captured while `setFrameLog(true)` is on. */
+export interface RawFrame {
+  dir: 'tx' | 'rx';
+  bytes: number[];
+  ts: number; // ms since epoch
+  elapsedMs: number | null; // rx: time since the request was written
+  proto: 'tcp' | 'rtu';
+  note: string | null; // e.g. 'no response', 'transaction ID mismatch, ignored'
 }
 
 declare global {

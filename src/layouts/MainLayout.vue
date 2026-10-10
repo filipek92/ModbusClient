@@ -63,6 +63,10 @@ onMounted(() => {
     window.myAPI.onLog((msg: string) => {
       store.addLog(msg);
     });
+    window.myAPI.onRawFrame((frame) => {
+      store.addFrame(frame);
+    });
+    void store.setFrameLog(store.frameLogEnabled);
     window.myAPI.onStatusChange((status: string) => {
       store.setStatus(status);
     });

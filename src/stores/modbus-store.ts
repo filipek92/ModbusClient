@@ -4,10 +4,27 @@ import { availableDecoders, getDecoder, loadDecoders, importDecoder, exportDecod
 import type { DecoderField, OperationValue } from '../decoders/types';
 import type { ConnectionType, Workspace } from './workspace';
 import { useTrendStore, collectorKey, deviceKey, deviceFieldKey } from './trend-store';
+import type { RawFrame } from '../my-api';
+
+export type LogLevel = 'info' | 'warn' | 'error' | 'tx' | 'rx';
 
 export interface LogEntry {
   id: number;
+  ts: number; // ms since epoch
+  level: LogLevel;
   message: string;
+  frame?: RawFrame; // set for 'tx' / 'rx'
+}
+
+const LOG_LIMIT = 1000;
+const FRAME_LOG_KEY = 'modbus_frame_log';
+
+// Backend and store messages carry no level, so it is derived from their wording
+function inferLevel(message: string): LogLevel {
+  if (/^(Found device|Match found)/.test(message)) return 'info';
+  if (/\b(error|failed|exception|cannot)\b/i.test(message)) return 'error';
+  if (/\b(aborted|busy|occupied|timed out|retrying)\b/i.test(message)) return 'warn';
+  return 'info';
 }
 
 export type RegisterType = 'holding' | 'input' | 'coil' | 'discrete';
@@ -48,6 +65,8 @@ export const useModbusStore = defineStore('modbus', () => {
   // State
   const connectionStatus = ref('disconnected');
   const logs = ref<LogEntry[]>([]);
+  const frameLogEnabled = ref(localStorage.getItem(FRAME_LOG_KEY) === '1');
+  let nextLogId = 1;
   const trafficStats = ref({ txBytes: 0, rxBytes: 0, txMsg: 0, rxMsg: 0 });
   const collectors = ref<Collector[]>([]);
   const devices = ref<ActiveDevice[]>([]);
@@ -84,9 +103,27 @@ export const useModbusStore = defineStore('modbus', () => {
   const manualWriteStrategy = ref<'single' | 'multiple'>('single');
 
   // Actions
-  function addLog(message: string) {
-    logs.value.push({ id: Date.now(), message });
-    if (logs.value.length > 200) logs.value.shift();
+  function pushLog(entry: Omit<LogEntry, 'id'>) {
+    logs.value.push({ id: nextLogId++, ...entry });
+    if (logs.value.length > LOG_LIMIT) logs.value.splice(0, logs.value.length - LOG_LIMIT);
+  }
+
+  function addLog(message: string, level: LogLevel = inferLevel(message)) {
+    pushLog({ ts: Date.now(), level, message });
+  }
+
+  function addFrame(frame: RawFrame) {
+    pushLog({ ts: frame.ts, level: frame.dir, message: '', frame });
+  }
+
+  function clearLogs() {
+    logs.value = [];
+  }
+
+  async function setFrameLog(enabled: boolean) {
+    frameLogEnabled.value = enabled;
+    localStorage.setItem(FRAME_LOG_KEY, enabled ? '1' : '0');
+    await window.myAPI.setFrameLog(enabled);
   }
 
   function setStatus(status: string) {
@@ -734,6 +771,7 @@ export const useModbusStore = defineStore('modbus', () => {
     connectionStatus,
     logs,
     trafficStats,
+    frameLogEnabled,
     collectors,
     devices,
     connectionType,
@@ -754,6 +792,9 @@ export const useModbusStore = defineStore('modbus', () => {
     manualReadStart,
     manualTimestamp,
     addLog,
+    addFrame,
+    clearLogs,
+    setFrameLog,
     setStatus,
     connect,
     disconnect,
