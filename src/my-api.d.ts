@@ -27,6 +27,7 @@ export interface IDecoderField {
   wordOrder?: 'big-endian' | 'little-endian';
   transform?: string;
   map?: Record<string, string>;
+  readOnly?: boolean;
 }
 
 export interface IDeviceDecoder {

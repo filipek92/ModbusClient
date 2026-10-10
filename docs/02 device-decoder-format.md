@@ -63,6 +63,7 @@ Každý prvek v poli `fields` popisuje jeden nebo více registrů k přečtení 
 | `wordOrder` | `string` | – | Pořadí slov u 32-bitových typů: `"big-endian"` (High–Low, výchozí) nebo `"little-endian"` (Low–High) |
 | `transform` | `string` | – | Tělo JavaScript funkce pro vlastní transformaci. Proměnná `value` obsahuje hodnotu po aplikaci `scale`. Funkce musí obsahovat `return`. |
 | `map` | `object` | – | Mapování číselné hodnoty na řetězec (enum). Klíče jsou čísla jako řetězce. |
+| `readOnly` | `boolean` | – | Jen pro `holding`/`coil`: hodnota se pouze zobrazuje a nelze ji zapsat z UI. Pro zařízení, která používají jen holding registry, ale některé z nich jsou jen pro čtení (např. měřené hodnoty). Výchozí: `false` |
 
 ---
 
@@ -85,9 +86,9 @@ Každý prvek v poli `fields` popisuje jeden nebo více registrů k přečtení 
 
 | `type` | Modbus funkce (čtení) | Popis | Zápis |
 |---|---|---|---|
-| `holding` | FC 03 | Holding registers – universální R/W registry | ✅ |
+| `holding` | FC 03 | Holding registers – universální R/W registry | ✅ (pokud není `readOnly`) |
 | `input` | FC 04 | Input registers – měřené hodnoty (jen čtení) | ❌ |
-| `coil` | FC 01 | Digitální výstup (boolean) | ✅ |
+| `coil` | FC 01 | Digitální výstup (boolean) | ✅ (pokud není `readOnly`) |
 | `discrete` | FC 02 | Digitální vstup (boolean, jen čtení) | ❌ |
 
 ---
@@ -342,6 +343,7 @@ Pokud generuješ dekodér na základě dokumentace k zařízení (datasheet, Mod
 5. **`map`** – pro stavové registry vždy vypiš všechny hodnoty z datasheetu.
 6. Nepoužívej `transform` tam, kde stačí `scale` + `precision` + `map`.
 7. Ujisti se, že `id` je unikátní v rámci celé sady dekodérů.
+8. **`readOnly`** – pokud zařízení vystavuje měřené/stavové hodnoty v holding registrech a datasheet je uvádí jako R (jen čtení), nastav `readOnly: true`.
 
 ### Adresní konvence
 

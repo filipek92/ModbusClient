@@ -12,6 +12,7 @@ export interface DecoderField {
   wordOrder?: 'big-endian' | 'little-endian'; // For 32-bit values (High-Low vs Low-High)
   transform?: string; // JavaScript lambda body: (value, rawContext) => return ...
   map?: Record<number, string>; // Enum mapping for value
+  readOnly?: boolean; // holding/coil that must not be written from the UI
 }
 
 // Value in an operation step: a literal number or a "{paramName}" reference

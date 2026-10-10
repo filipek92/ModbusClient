@@ -293,7 +293,7 @@
                  <div class="text-caption text-grey q-mb-xs">{{ field.name }} ({{ field.address }})</div>
                  
                  <!-- Editable Holding Register -->
-                 <template v-if="field.type === 'holding' || field.type === 'coil'">
+                 <template v-if="(field.type === 'holding' || field.type === 'coil') && !field.readOnly">
                     <!-- Enum Select -->
                     <template v-if="field.map">
                       <q-select
@@ -317,7 +317,7 @@
                     </template>
                  </template>
 
-                 <!-- Read-Only (Input/Discrete) -->
+                 <!-- Read-Only (Input/Discrete or readOnly) -->
                  <template v-else>
                    <div class="text-h6 text-primary">
                       {{ dev.values[field.name] !== undefined ? dev.values[field.name] : '-' }}
@@ -380,6 +380,9 @@
                 </q-td>
                 <q-td key="type" :props="props" style="width: 110px">
                   <q-select v-model="props.row.type" :options="registerTypeOptions" dense borderless emit-value map-options />
+                </q-td>
+                <q-td key="readOnly" :props="props" style="width: 50px">
+                  <q-checkbox v-model="props.row.readOnly" dense :disable="props.row.type === 'input' || props.row.type === 'discrete'" />
                 </q-td>
                 <q-td key="dataType" :props="props" style="width: 110px">
                   <q-select v-model="props.row.dataType" :options="dataTypeOptions" dense borderless emit-value map-options />
@@ -708,6 +711,7 @@ export default defineComponent({
       { name: 'address', label: 'Address', field: 'address', align: 'center' as const },
       { name: 'name', label: 'Name', field: 'name', align: 'left' as const },
       { name: 'type', label: 'Reg Type', field: 'type', align: 'left' as const },
+      { name: 'readOnly', label: 'RO', field: 'readOnly', align: 'center' as const },
       { name: 'dataType', label: 'Data Type', field: 'dataType', align: 'left' as const },
       { name: 'unit', label: 'Unit', field: 'unit', align: 'left' as const },
       { name: 'scale', label: 'Scale', field: 'scale', align: 'center' as const },
@@ -824,6 +828,7 @@ export default defineComponent({
           if (f.wordOrder) clean.wordOrder = f.wordOrder;
           if (f.transform) clean.transform = f.transform;
           if (f.map && Object.keys(f.map).length > 0) clean.map = f.map;
+          if (f.readOnly && (f.type === 'holding' || f.type === 'coil')) clean.readOnly = true;
           return clean;
         })
       };
@@ -914,7 +919,7 @@ export default defineComponent({
     const infoColumns = [
       { name: 'address', label: 'Address', field: 'address', sortable: true, align: 'left' },
       { name: 'name', label: 'Name', field: 'name', sortable: true, align: 'left' },
-      { name: 'type', label: 'Type', field: 'type', sortable: true, align: 'left' },
+      { name: 'type', label: 'Type', field: (f: DecoderField) => f.readOnly ? `${f.type} (read-only)` : f.type, sortable: true, align: 'left' },
       { name: 'dataType', label: 'Data Type', field: 'dataType', align: 'left' },
       { name: 'unit', label: 'Unit', field: 'unit', align: 'left' },
       { name: 'scale', label: 'Scale', field: 'scale', align: 'right' },

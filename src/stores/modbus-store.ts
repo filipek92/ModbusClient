@@ -516,7 +516,7 @@ export const useModbusStore = defineStore('modbus', () => {
     const decoder = getDecoder(d.decoderId);
     if (!decoder) return;
     const field = decoder.fields.find(f => f.name === fieldName);
-    if (!field) return;
+    if (!field || field.readOnly) return;
 
     // Convert value back to raw register value
     let valToWrite = Number(value);

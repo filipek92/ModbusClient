@@ -9,6 +9,7 @@
       "type": "holding",
       "name": "Measured Value",
       "dataType": "float32",
+      "readOnly": true,
       "precision": 3,
       "wordOrder": "big-endian"
     },
@@ -16,7 +17,8 @@
       "address": 4,
       "type": "holding",
       "name": "Measured Value (raw)",
-      "dataType": "int16"
+      "dataType": "int16",
+      "readOnly": true
     },
     {
       "address": 2,
