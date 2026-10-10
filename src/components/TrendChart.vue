@@ -100,7 +100,7 @@ export default defineComponent({
       const [kind, id, ...rest] = key.split(':');
       if (kind === 'col') {
         const c = store.collectors.find(x => x.id === id);
-        return { label: c?.name || 'Collector', unit: '' };
+        return { label: c?.name || 'Collector', unit: c?.unit ?? '' };
       }
       const field = rest.join(':');
       const d = store.devices.find(x => x.id === id);

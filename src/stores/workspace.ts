@@ -35,6 +35,7 @@ export interface WorkspaceCollector {
   interval: number;
   name: string;
   jsConversion: string;
+  unit: string;
 }
 
 export interface WorkspaceManual {
@@ -113,6 +114,7 @@ export function normalizeWorkspace(raw: unknown): Workspace {
         interval: num(col.interval, 1000),
         name: str(col.name, 'Collector'),
         jsConversion: str(col.jsConversion, 'return value[0];'),
+        unit: str(col.unit, ''),
       })),
     manual: {
       type: oneOf(m.type, REGISTER_TYPES, 'holding'),

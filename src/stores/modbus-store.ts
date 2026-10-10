@@ -22,6 +22,7 @@ export interface Collector {
   interval: number;
   name: string;
   jsConversion: string; 
+  unit: string;
   lastValue: string | number | null;
   error: string | null;
   timerId: ReturnType<typeof setInterval> | null;
@@ -214,6 +215,7 @@ export const useModbusStore = defineStore('modbus', () => {
       interval: 1000,
       name: 'New Collector',
       jsConversion: 'return value[0];',
+      unit: '',
       lastValue: null,
       error: null,
       timerId: null
@@ -671,6 +673,7 @@ export const useModbusStore = defineStore('modbus', () => {
         interval: c.interval,
         name: c.name,
         jsConversion: c.jsConversion,
+        unit: c.unit,
       })),
       manual: {
         type: manualType.value,
