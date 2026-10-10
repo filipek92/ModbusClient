@@ -5,9 +5,10 @@
     <div class="q-gutter-sm row items-center q-my-sm">
       <q-radio v-model="store.connectionType" val="tcp" label="TCP" :disable="isConnected" />
       <q-radio v-model="store.connectionType" val="rtu" label="RTU" :disable="isConnected" />
+      <q-radio v-model="store.connectionType" val="rtu-over-tcp" label="RTU over TCP" :disable="isConnected" />
     </div>
 
-    <div v-if="store.connectionType === 'tcp'" class="row q-col-gutter-sm">
+    <div v-if="store.connectionType === 'tcp' || store.connectionType === 'rtu-over-tcp'" class="row q-col-gutter-sm">
       <div class="col-8">
         <q-select
           v-model="store.tcpHost"

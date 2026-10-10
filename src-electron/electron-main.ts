@@ -17,7 +17,7 @@ const platform = process.platform || os.platform()
 let mainWindow: InstanceType<typeof BrowserWindow> | undefined | null
 const client = new ModbusRTU()
 let connectionStatus = 'disconnected'
-let connectionMode: 'tcp' | 'rtu' = 'tcp'
+let connectionMode: 'tcp' | 'rtu' | 'rtu-over-tcp' = 'tcp'
 const trafficStats = {
   txBytes: 0,
   rxBytes: 0,
@@ -444,6 +444,31 @@ ipcMain.handle('connect-tcp', async (event, { host, port }) => {
   })
 })
 
+ipcMain.handle('connect-rtu-tcp', async (event, { host, port }) => {
+  return clientMutex.runExclusive(async () => {
+    try {
+      sendLog(`Connecting to RTU over TCP: ${host}:${port}...`)
+      if (client.isOpen) client.close()
+
+      await client.connectTcpRTUBuffered(host, { port: parseInt(port) })
+      client.setID(1) // Default ID, can be changed per request
+      client.setTimeout(2000)
+
+      connectionMode = 'rtu-over-tcp'
+      resetStats()
+
+      sendStatus('connected')
+      sendLog(`Connected to ${host}:${port} (RTU over TCP)`)
+      return { success: true }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      sendLog(`Error connecting RTU over TCP: ${msg}`)
+      sendStatus('error')
+      return { success: false, error: msg }
+    }
+  })
+})
+
 ipcMain.handle('connect-rtu', async (event, { path, baudRate, parity, dataBits, stopBits }) => {
   return clientMutex.runExclusive(async () => {
     try {
@@ -499,7 +524,7 @@ ipcMain.handle('read-modbus', async (event, { type, id, start, length }) => {
       let data
       
       // Approx overheads
-      const isTcp = connectionMode === 'tcp'
+      const isTcp = connectionMode === 'tcp' // RTU and RTU-over-TCP share the same address+PDU+CRC frame, no MBAP header
       const reqBase = isTcp ? 12 : 8 // TCP:7+5, RTU:1+5+2
       let resDataLen = 0
 
@@ -595,7 +620,7 @@ ipcMain.handle('write-modbus', async (event, { type, id, address, values, strate
       }
 
       // Calc Stats for Write
-      const isTcp = connectionMode === 'tcp'
+      const isTcp = connectionMode === 'tcp' // RTU and RTU-over-TCP share the same address+PDU+CRC frame, no MBAP header
       let txBytes = 0
       let rxBytes = 0
       const count = valArray.length;
