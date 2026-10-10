@@ -633,6 +633,10 @@ pub async fn scan_devices(app: AppHandle, state: State<'_, ModbusState>, args: S
                 }
                 // not found, stop retrying for this ID to save time
                 Err(ReqError::Timeout) => {}
+                // A TCP->RTU gateway answering for the device: nothing responded on its bus
+                Err(ReqError::Exception(
+                    ExceptionCode::GatewayTargetDevice | ExceptionCode::GatewayPathUnavailable,
+                )) => {}
                 Err(ReqError::Exception(ExceptionCode::ServerDeviceBusy)) => {
                     send_log(&app, format!("Device BUSY at ID: {id}, retrying ({attempt}/3)..."));
                     sleep(Duration::from_millis(200)).await;
