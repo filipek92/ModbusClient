@@ -43,8 +43,6 @@ struct TrafficStats {
 
 struct Conn {
     ctx: Option<Context>,
-    /// Last addressed slave; the value scanner (which has no ID argument) reuses it.
-    slave: u8,
     mode: Mode,
     status: &'static str,
     timeout: Duration,
@@ -55,7 +53,6 @@ impl Default for Conn {
     fn default() -> Self {
         Self {
             ctx: None,
-            slave: 1,
             mode: Mode::Tcp,
             status: "disconnected",
             timeout: DEFAULT_TIMEOUT,
@@ -110,7 +107,6 @@ async fn run<T>(
 
 impl Conn {
     fn ctx_for(&mut self, slave: u8) -> Result<&mut Context, ReqError> {
-        self.slave = slave;
         let ctx = self
             .ctx
             .as_mut()
@@ -303,7 +299,6 @@ async fn connect_over_tcp(app: AppHandle, state: State<'_, ModbusState>, args: T
     match open_tcp(&args.host, args.port).await {
         Ok(stream) => {
             let _ = stream.set_nodelay(true);
-            conn.slave = 1;
             conn.ctx = Some(if mode == Mode::Tcp {
                 tcp::attach(MbapFilter::new(stream))
             } else {
@@ -408,7 +403,6 @@ pub async fn connect_rtu(app: AppHandle, state: State<'_, ModbusState>, args: Rt
 
     match open_serial(&args) {
         Ok(port) => {
-            conn.slave = 1;
             conn.ctx = Some(rtu::attach(port));
             conn.timeout = DEFAULT_TIMEOUT;
             conn.mode = Mode::Rtu;
@@ -695,6 +689,8 @@ pub fn cancel_scan(cancel: State<'_, ScanCancel>) {
 #[serde(rename_all = "camelCase")]
 pub struct ScanValuesArgs {
     #[serde(deserialize_with = "lenient_int")]
+    id: u8,
+    #[serde(deserialize_with = "lenient_int")]
     start_addr: u32,
     #[serde(deserialize_with = "lenient_int")]
     count: u32,
@@ -725,10 +721,10 @@ pub async fn scan_values(app: AppHandle, state: State<'_, ModbusState>, args: Sc
     let end = (start + args.count).min(0x1_0000);
     let total = (end - start).max(1);
     let target = args.value;
-    let slave = conn.slave;
+    let slave = args.id;
     let mut matches = Vec::new();
 
-    send_log(&app, format!("Scanning {} registers starting at {} for value {target}...", args.count, args.start_addr));
+    send_log(&app, format!("Scanning {} registers of device {slave} starting at {} for value {target}...", args.count, args.start_addr));
 
     let kinds = [("holding", true), ("input", false)]
         .into_iter()
@@ -922,7 +918,6 @@ mod tests {
         let t = conn.timeout;
         let ctx = conn.ctx_for(1).unwrap();
         assert!(run(t, ctx.write_single_register(10, 0xFFFF)).await.is_ok());
-        assert_eq!(conn.slave, 1);
     }
 
     #[tokio::test]

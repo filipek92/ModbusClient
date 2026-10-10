@@ -31,7 +31,7 @@ const api: IModbusAPI = {
       signal?.removeEventListener('abort', onAbort);
     }
   },
-  scanValues: (startAddr, count, value, types) => invoke('scan_values', { args: { startAddr, count, value, types } }),
+  scanValues: (id, startAddr, count, value, types) => invoke('scan_values', { args: { id, startAddr, count, value, types } }),
 
   // Decoder Management
   getDecoders: () => invoke('get_decoders'),

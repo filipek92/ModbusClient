@@ -50,7 +50,7 @@ export interface IModbusAPI {
   writeModbus: (type: 'holding' | 'coil', id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[], strategy?: 'single' | 'multiple') => Promise<{ success: boolean; error?: string }>;
   /** Aborting `signal` stops the scan after its current request; it resolves with the IDs found so far. */
   scanDevices: (startId: number, endId: number, timeout: number, signal?: AbortSignal) => Promise<number[]>;
-  scanValues: (startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
+  scanValues: (id: number, startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
   
   // Decoder Management
   getDecoders: () => Promise<{ success: boolean; data?: IDeviceDecoder[]; error?: string }>;
