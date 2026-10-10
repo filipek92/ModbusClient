@@ -84,12 +84,6 @@
       "dataType": "int16"
     },
     {
-      "address": 0,
-      "type": "holding",
-      "name": "Slave Address",
-      "dataType": "uint16"
-    },
-    {
       "address": 1,
       "type": "holding",
       "name": "Baud Rate",
