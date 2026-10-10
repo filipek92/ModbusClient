@@ -27,6 +27,7 @@
             type="number"
             outlined
             dense
+            hint="First register address (0-based)"
           />
         </div>
 
