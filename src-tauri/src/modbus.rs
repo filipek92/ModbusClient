@@ -166,6 +166,118 @@ pub struct TcpArgs {
     port: u16,
 }
 
+/// Modbus TCP transport that drops response frames whose transaction ID does not match
+/// the last request sent. Without it, a reply arriving after our timeout is read by the
+/// next request, tokio-modbus fails with "mismatching headers" and every following
+/// request stays one reply behind (modbus-serial in the Electron version ignored them).
+#[derive(Debug)]
+struct MbapFilter<T> {
+    inner: T,
+    /// Outgoing bytes of the frame currently being written (until its header is complete).
+    wbuf: Vec<u8>,
+    /// Remaining bytes of the outgoing frame after its header was seen.
+    wremaining: usize,
+    expected: Option<[u8; 2]>,
+    /// Raw incoming bytes not yet split into frames.
+    rbuf: Vec<u8>,
+    /// Accepted frames waiting to be handed to the codec.
+    ready: Vec<u8>,
+}
+
+impl<T> MbapFilter<T> {
+    fn new(inner: T) -> Self {
+        Self { inner, wbuf: Vec::new(), wremaining: 0, expected: None, rbuf: Vec::new(), ready: Vec::new() }
+    }
+
+    fn track_written(&mut self, mut data: &[u8]) {
+        while !data.is_empty() {
+            if self.wremaining > 0 {
+                let n = self.wremaining.min(data.len());
+                self.wremaining -= n;
+                data = &data[n..];
+                continue;
+            }
+            let n = (6 - self.wbuf.len()).min(data.len());
+            self.wbuf.extend_from_slice(&data[..n]);
+            data = &data[n..];
+            if self.wbuf.len() == 6 {
+                self.expected = Some([self.wbuf[0], self.wbuf[1]]);
+                self.wremaining = usize::from(u16::from_be_bytes([self.wbuf[4], self.wbuf[5]]));
+                self.wbuf.clear();
+            }
+        }
+    }
+
+    fn split_frames(&mut self) {
+        while self.rbuf.len() >= 6 {
+            let len = usize::from(u16::from_be_bytes([self.rbuf[4], self.rbuf[5]]));
+            if !(2..=254).contains(&len) {
+                // Not a sane MBAP frame, let the codec report the error
+                self.ready.append(&mut self.rbuf);
+                return;
+            }
+            if self.rbuf.len() < 6 + len {
+                return;
+            }
+            let frame: Vec<u8> = self.rbuf.drain(..6 + len).collect();
+            if self.expected.is_none_or(|txn| frame[..2] == txn) {
+                self.ready.extend_from_slice(&frame);
+            }
+        }
+    }
+}
+
+impl<T: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for MbapFilter<T> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<io::Result<()>> {
+        use std::task::Poll;
+        let this = self.get_mut();
+        while this.ready.is_empty() {
+            let mut tmp = [0u8; 512];
+            let mut rb = tokio::io::ReadBuf::new(&mut tmp);
+            match std::pin::Pin::new(&mut this.inner).poll_read(cx, &mut rb) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Ready(Ok(())) if rb.filled().is_empty() => return Poll::Ready(Ok(())), // EOF
+                Poll::Ready(Ok(())) => {
+                    this.rbuf.extend_from_slice(rb.filled());
+                    this.split_frames();
+                }
+            }
+        }
+        let n = this.ready.len().min(buf.remaining());
+        buf.put_slice(&this.ready[..n]);
+        this.ready.drain(..n);
+        Poll::Ready(Ok(()))
+    }
+}
+
+impl<T: tokio::io::AsyncWrite + Unpin> tokio::io::AsyncWrite for MbapFilter<T> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<io::Result<usize>> {
+        let this = self.get_mut();
+        let res = std::pin::Pin::new(&mut this.inner).poll_write(cx, buf);
+        if let std::task::Poll::Ready(Ok(n)) = res {
+            this.track_written(&buf[..n]);
+        }
+        res
+    }
+
+    fn poll_flush(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().inner).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<io::Result<()>> {
+        std::pin::Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
+    }
+}
+
 async fn open_tcp(host: &str, port: u16) -> io::Result<TcpStream> {
     tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect((host, port)))
         .await
@@ -183,7 +295,7 @@ async fn connect_over_tcp(app: AppHandle, state: State<'_, ModbusState>, args: T
             let _ = stream.set_nodelay(true);
             conn.slave = 1;
             conn.ctx = Some(if mode == Mode::Tcp {
-                tcp::attach(stream)
+                tcp::attach(MbapFilter::new(stream))
             } else {
                 rtu::attach(stream)
             });
@@ -726,6 +838,9 @@ mod tests {
                     let len = u16::from_be_bytes([header[4], header[5]]) as usize;
                     let mut pdu = vec![0u8; len - 1];
                     sock.read_exact(&mut pdu).await.unwrap();
+                    if header[6] == 5 {
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
                     if let Some(res) = respond(header[6], &pdu, &mut busy_once) {
                         let mut frame = header[..4].to_vec();
                         frame.extend_from_slice(&((res.len() + 1) as u16).to_be_bytes());
@@ -743,7 +858,7 @@ mod tests {
         let port = fake_server(mode == Mode::RtuOverTcp).await;
         let stream = open_tcp("127.0.0.1", port).await.unwrap();
         Conn {
-            ctx: Some(if mode == Mode::Tcp { tcp::attach(stream) } else { rtu::attach(stream) }),
+            ctx: Some(if mode == Mode::Tcp { tcp::attach(MbapFilter::new(stream)) } else { rtu::attach(stream) }),
             mode,
             status: "connected",
             timeout: Duration::from_millis(300),
@@ -782,6 +897,16 @@ mod tests {
     #[tokio::test]
     async fn modbus_tcp_against_fake_server() {
         exercise(Mode::Tcp).await;
+    }
+
+    #[tokio::test]
+    async fn modbus_tcp_ignores_late_response() {
+        let mut conn = connected(Mode::Tcp).await;
+        // Unit 5 answers after the client timeout; its late reply must not break later requests
+        assert!(matches!(conn.read_registers(5, true, 0, 1).await, Err(ReqError::Timeout)));
+        for i in 0..3 {
+            assert_eq!(conn.read_registers(1, true, 20 + i, 2).await.ok(), Some(vec![20 + i, 21 + i]));
+        }
     }
 
     #[tokio::test]
