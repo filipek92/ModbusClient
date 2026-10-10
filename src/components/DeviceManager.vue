@@ -166,6 +166,7 @@
         <q-card-section>
           <div class="text-h6">Scan Modbus Bus</div>
           <div class="text-caption">Scans ID range for active devices</div>
+          <div class="text-caption text-grey">Over TCP the timeout must exceed the gateway's own response timeout, otherwise its request queue fills up and nothing is found.</div>
         </q-card-section>
 
         <q-card-section>
@@ -527,7 +528,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
+import { defineComponent, ref, reactive, computed, onMounted, watch } from 'vue';
 import { useModbusStore } from 'stores/modbus-store';
 import { getDecoder } from 'src/decoders';
 import type { DeviceDecoder, DecoderField, DeviceOperation } from 'src/decoders/types';
@@ -828,7 +829,11 @@ export default defineComponent({
     const scanDialog = ref(false);
     const scanStart = ref(1);
     const scanEnd = ref(20);
-    const scanTimeout = ref(100);
+    // TCP gateways wait their own serial timeout (often ~2 s) for a missing ID and queue
+    // further requests meanwhile, so a shorter scan timeout makes every later ID time out too
+    const defaultScanTimeout = () => (store.connectionType === 'rtu' ? 200 : 2500);
+    const scanTimeout = ref(defaultScanTimeout());
+    watch(() => store.connectionType, () => { scanTimeout.value = defaultScanTimeout(); });
     const isScanning = ref(false);
     const scanHasRun = ref(false);
     const scanResults = ref<number[]>([]);

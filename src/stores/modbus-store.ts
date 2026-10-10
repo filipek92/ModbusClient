@@ -70,6 +70,8 @@ export const useModbusStore = defineStore('modbus', () => {
   const manualData = ref<number[] | boolean[] | null>(null);
   const manualReadStart = ref(0); // Snapshot for displaying correct addresses
   const manualTimestamp = ref('');
+  const manualBusy = ref(false); // A manual read/write is in progress
+  const manualDuration = ref<number | null>(null); // Response time of the last manual read/write [ms]
 
   // Manual Write State
   const manualWriteValue = ref(''); // string for input, comma separated
@@ -112,23 +114,34 @@ export const useModbusStore = defineStore('modbus', () => {
   }
 
   async function manualRead() {
-    const res = await window.myAPI.readModbus(manualType.value, manualSlaveId.value, manualStart.value, manualLength.value);
-    manualTimestamp.value = new Date().toLocaleString();
+    if (manualBusy.value) return;
+    manualBusy.value = true;
+    try {
+      const t0 = performance.now();
+      const res = await window.myAPI.readModbus(manualType.value, manualSlaveId.value, manualStart.value, manualLength.value);
+      manualDuration.value = performance.now() - t0;
+      manualTimestamp.value = new Date().toLocaleString();
     
-    if (res.success && res.data) {
-      manualData.value = res.data;
-      manualReadStart.value = manualStart.value;
-      manualResult.value = 'Read Success';
-      addLog(`Read [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${JSON.stringify(res.data)}`);
-    } else {
-      manualData.value = null;
-      manualResult.value = 'Error: ' + res.error;
-      addLog(`Read Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
+      if (res.success && res.data) {
+        manualData.value = res.data;
+        manualReadStart.value = manualStart.value;
+        manualResult.value = 'Read Success';
+        addLog(`Read [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${JSON.stringify(res.data)}`);
+      } else {
+        manualData.value = null;
+        manualResult.value = 'Error: ' + res.error;
+        addLog(`Read Error [${manualType.value}] ID:${manualSlaveId.value} Addr:${manualStart.value}: ${res.error}`);
+      }
+    } finally {
+      manualBusy.value = false;
     }
   }
 
   async function manualWrite() {
+    if (manualBusy.value) return;
+    manualBusy.value = true;
     manualData.value = null;
+    manualDuration.value = null;
     manualTimestamp.value = new Date().toLocaleString();
     try {
       if (manualType.value === 'input' || manualType.value === 'discrete') {
@@ -159,6 +172,7 @@ export const useModbusStore = defineStore('modbus', () => {
         });
       }
 
+      const t0 = performance.now();
       const res = await window.myAPI.writeModbus(
         manualType.value as 'holding'|'coil', // only these 2 are allowed here
         manualSlaveId.value, 
@@ -166,6 +180,8 @@ export const useModbusStore = defineStore('modbus', () => {
         values,
         manualWriteStrategy.value
       );
+      manualDuration.value = performance.now() - t0;
+      manualTimestamp.value = new Date().toLocaleString();
 
       if (res.success) {
         manualResult.value = 'Write Success';
@@ -178,6 +194,8 @@ export const useModbusStore = defineStore('modbus', () => {
       const msg = e instanceof Error ? e.message : String(e);
       manualResult.value = 'Write Exception: ' + msg;
       addLog(`Write Exception: ${msg}`);
+    } finally {
+      manualBusy.value = false;
     }
   }
 
@@ -611,6 +629,8 @@ export const useModbusStore = defineStore('modbus', () => {
     manualStart,
     manualLength,
     manualResult,
+    manualBusy,
+    manualDuration,
     manualData,
     manualReadStart,
     manualTimestamp,

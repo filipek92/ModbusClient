@@ -66,7 +66,8 @@
           label="Read" 
           color="secondary" 
           @click="store.manualRead" 
-          :disable="!isConnected" 
+          :disable="!isConnected || store.manualBusy" 
+          :loading="store.manualBusy" 
           class="full-width"
         />
         <q-btn 
@@ -74,7 +75,8 @@
           label="Write" 
           color="accent" 
           @click="store.manualWrite" 
-          :disable="!isConnected" 
+          :disable="!isConnected || store.manualBusy" 
+          :loading="store.manualBusy" 
           class="full-width"
         />
       </div>
@@ -83,7 +85,10 @@
     <div class="q-mt-sm bg-grey-2 q-pa-sm rounded-borders" style="min-height: 40px;">
       <div class="row justify-between">
         <div>Result:</div>
-        <div v-if="store.manualTimestamp" class="text-caption text-grey-7">{{ store.manualTimestamp }}</div>
+        <div v-if="store.manualTimestamp" class="text-caption text-grey-7">
+          {{ store.manualTimestamp }}
+          <span v-if="store.manualDuration !== null"> · {{ store.manualDuration.toFixed(0) }} ms</span>
+        </div>
       </div>
       
       <div v-if="store.manualData && store.manualData.length > 0">
