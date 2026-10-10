@@ -21,7 +21,16 @@ const api: IModbusAPI = {
   // Modbus Actions
   readModbus: (type, id, start, length) => invoke('read_modbus', { args: { type, id, start, length } }),
   writeModbus: (type, id, address, values, strategy) => invoke('write_modbus', { args: { type, id, address, values, strategy } }),
-  scanDevices: (startId, endId, timeout) => invoke('scan_devices', { args: { startId, endId, timeout } }),
+  scanDevices: async (startId, endId, timeout, signal) => {
+    if (signal?.aborted) return [];
+    const onAbort = () => { void invoke('cancel_scan'); };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      return await invoke<number[]>('scan_devices', { args: { startId, endId, timeout } });
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+    }
+  },
   scanValues: (startAddr, count, value, types) => invoke('scan_values', { args: { startAddr, count, value, types } }),
 
   // Decoder Management

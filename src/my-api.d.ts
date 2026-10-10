@@ -48,7 +48,8 @@ export interface IModbusAPI {
   listSerialPorts: () => Promise<ISerialPort[]>;
   readModbus: (type: 'holding' | 'input' | 'coil' | 'discrete', id: number, start: number, length: number) => Promise<{ success: boolean; data?: number[] | boolean[], error?: string }>;
   writeModbus: (type: 'holding' | 'coil', id: number, address: number, values: number | number[] | boolean | boolean[] | string | string[], strategy?: 'single' | 'multiple') => Promise<{ success: boolean; error?: string }>;
-  scanDevices: (startId: number, endId: number, timeout: number) => Promise<number[]>;
+  /** Aborting `signal` stops the scan after its current request; it resolves with the IDs found so far. */
+  scanDevices: (startId: number, endId: number, timeout: number, signal?: AbortSignal) => Promise<number[]>;
   scanValues: (startAddr: number, count: number, value: number, types: ('holding' | 'input')[]) => Promise<{ address: number, type: 'holding' | 'input', value: number }[]>;
   
   // Decoder Management

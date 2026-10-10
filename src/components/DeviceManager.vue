@@ -234,7 +234,8 @@
 
         <q-card-actions align="right">
           <q-btn flat label="Close" color="primary" v-close-popup :disable="isScanning" />
-          <q-btn label="Start Scan" color="secondary" @click="performScan" :loading="isScanning" />
+          <q-btn v-if="isScanning" label="Stop" color="negative" icon="stop" @click="stopScan" :loading="scanStopping" />
+          <q-btn v-else label="Start Scan" color="secondary" @click="performScan" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -868,8 +869,17 @@ export default defineComponent({
     const scanHasRun = ref(false);
     const scanResults = ref<number[]>([]);
     const currentScanId = ref<number | null>(null);
+    const scanStopping = ref(false);
+    let scanAbort: AbortController | null = null;
+
+    function stopScan() {
+       scanStopping.value = true;
+       scanAbort?.abort();
+    }
 
     async function performScan() {
+       scanAbort = new AbortController();
+       scanStopping.value = false;
        isScanning.value = true;
        scanHasRun.value = true;
        scanResults.value = [];
@@ -882,12 +892,14 @@ export default defineComponent({
        });
 
        try {
-         const results = await window.myAPI.scanDevices(scanStart.value, scanEnd.value, scanTimeout.value);
+         const results = await window.myAPI.scanDevices(scanStart.value, scanEnd.value, scanTimeout.value, scanAbort.signal);
          scanResults.value = results;
        } catch (e) {
          console.error(e);
        } finally {
          isScanning.value = false;
+         scanStopping.value = false;
+         scanAbort = null;
          currentScanId.value = null;
        }
     }
@@ -1073,6 +1085,8 @@ export default defineComponent({
       scanResults,
       currentScanId,
       performScan,
+      stopScan,
+      scanStopping,
       useFoundID,
       scanFoundDecoder,
       decoderOptions,

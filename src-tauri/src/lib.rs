@@ -17,6 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(modbus::ModbusState::default())
+        .manage(modbus::ScanCancel::default())
         .manage(updater::UpdaterState::default())
         .invoke_handler(tauri::generate_handler![
             modbus::connect_tcp,
@@ -27,6 +28,7 @@ pub fn run() {
             modbus::read_modbus,
             modbus::write_modbus,
             modbus::scan_devices,
+            modbus::cancel_scan,
             modbus::scan_values,
             decoders::get_decoders,
             decoders::import_decoder,

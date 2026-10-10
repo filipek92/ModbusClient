@@ -1,6 +1,12 @@
 //! Modbus connection handling (TCP, RTU, RTU over TCP), reads/writes and scanners.
 
-use std::{fmt, future::Future, io, time::Duration};
+use std::{
+    fmt,
+    future::Future,
+    io,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -61,6 +67,10 @@ impl Default for Conn {
 /// All Modbus traffic goes through this mutex, so requests never interleave on the wire.
 #[derive(Default)]
 pub struct ModbusState(Mutex<Conn>);
+
+/// Set by `cancel_scan`; kept outside the connection mutex, which a running scan holds.
+#[derive(Default)]
+pub struct ScanCancel(AtomicBool);
 
 #[derive(Debug)]
 enum ReqError {
@@ -606,7 +616,13 @@ pub struct ScanDevicesArgs {
 }
 
 #[tauri::command]
-pub async fn scan_devices(app: AppHandle, state: State<'_, ModbusState>, args: ScanDevicesArgs) -> Result<Vec<u8>, ()> {
+pub async fn scan_devices(
+    app: AppHandle,
+    state: State<'_, ModbusState>,
+    cancel: State<'_, ScanCancel>,
+    args: ScanDevicesArgs,
+) -> Result<Vec<u8>, ()> {
+    cancel.0.store(false, Ordering::Relaxed);
     let mut conn = state.0.lock().await;
     let mut found = Vec::new();
 
@@ -623,6 +639,11 @@ pub async fn scan_devices(app: AppHandle, state: State<'_, ModbusState>, args: S
         let _ = app.emit("scan-progress", id);
 
         for attempt in 1..=3 {
+            // Checked between requests only: dropping one mid-flight could leave its late reply on the wire
+            if cancel.0.load(Ordering::Relaxed) {
+                send_log(&app, format!("Scan aborted at ID {id}."));
+                break 'ids;
+            }
             // Try to read Holding Register 0.
             // If the device exists, it will either reply with data OR an exception (e.g. Illegal Address).
             // Both mean the device is there. Only timeout means it's likely not there.
@@ -662,6 +683,12 @@ pub async fn scan_devices(app: AppHandle, state: State<'_, ModbusState>, args: S
     conn.timeout = original_timeout;
     send_log(&app, format!("Scan complete. Found {} devices.", found.len()));
     Ok(found)
+}
+
+/// Stops a running `scan_devices` after its current request; it then returns what it found so far.
+#[tauri::command]
+pub fn cancel_scan(cancel: State<'_, ScanCancel>) {
+    cancel.0.store(true, Ordering::Relaxed);
 }
 
 #[derive(Deserialize)]
