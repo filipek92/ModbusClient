@@ -23,14 +23,26 @@ fn report_error(app: &AppHandle, msg: impl std::fmt::Display) -> Value {
 }
 
 /// On Linux only the AppImage can replace itself; .deb installs are updated by the package manager.
+/// The Windows portable zip carries a `.portable` marker next to the exe: the updater would run the
+/// NSIS installer instead of replacing the portable copy, so it is disabled there.
 fn self_update_supported() -> bool {
-    !cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some()
+    if cfg!(target_os = "linux") {
+        return std::env::var_os("APPIMAGE").is_some();
+    }
+    !is_portable()
+}
+
+fn is_portable() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join(".portable").exists()))
+        .unwrap_or(false)
 }
 
 #[tauri::command]
 pub async fn check_for_updates(app: AppHandle, state: State<'_, UpdaterState>) -> Result<Value, ()> {
     if !self_update_supported() {
-        send_log(&app, "Updater: auto-update is available only for the AppImage build");
+        send_log(&app, "Updater: auto-update is not available for this build (use AppImage / installer)");
         return Ok(json!({ "updateInfo": null }));
     }
 

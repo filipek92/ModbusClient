@@ -60,3 +60,12 @@ jobs:
           prerelease: false
           # Publishes latest.json used by the in-app updater
           includeUpdaterJson: true
+
+      - name: Build and upload Windows portable zip
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          zip=$(node scripts/make-portable.mjs | tail -n 1)
+          gh release upload "${{ github.ref_name }}" "$zip" --clobber

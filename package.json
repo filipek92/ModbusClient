@@ -9,7 +9,7 @@
     "lint": "eslint --ext .js,.vue ./",
     "test": "cd src-tauri && cargo test",
     "dev": "tauri dev",
-    "build": "tauri build && node scripts/collect-bundles.mjs",
+    "build": "tauri build && node scripts/collect-bundles.mjs && node scripts/make-portable.mjs",
     "dev:web": "quasar dev",
     "build:web": "quasar build",
     "tauri": "tauri"
